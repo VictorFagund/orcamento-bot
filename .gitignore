@@ -1,0 +1,7 @@
+.venv/
+.env
+dados/
+bot.log
+resultado*.json
+__pycache__/
+.pytest_cache/

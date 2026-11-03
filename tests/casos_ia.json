@@ -1,0 +1,968 @@
+{
+ "tabela": [
+  {
+   "id": 1,
+   "descricao": "Troca de tomada ou interruptor",
+   "unidade": "un",
+   "sinonimos": [
+    "tomada",
+    "interruptor",
+    "trocar tomada"
+   ]
+  },
+  {
+   "id": 2,
+   "descricao": "Instalação de chuveiro",
+   "unidade": "un",
+   "sinonimos": [
+    "chuveiro",
+    "trocar chuveiro"
+   ]
+  },
+  {
+   "id": 3,
+   "descricao": "Ponto de luz",
+   "unidade": "un",
+   "sinonimos": [
+    "ponto de luz",
+    "luminária",
+    "lâmpada"
+   ]
+  },
+  {
+   "id": 4,
+   "descricao": "Instalação de ventilador de teto",
+   "unidade": "un",
+   "sinonimos": [
+    "ventilador",
+    "ventilador de teto"
+   ]
+  },
+  {
+   "id": 5,
+   "descricao": "Passagem de fiação",
+   "unidade": "m",
+   "sinonimos": [
+    "fiação",
+    "fio",
+    "cabo"
+   ]
+  },
+  {
+   "id": 6,
+   "descricao": "Troca de disjuntor",
+   "unidade": "un",
+   "sinonimos": [
+    "disjuntor"
+   ]
+  },
+  {
+   "id": 7,
+   "descricao": "Visita técnica",
+   "unidade": "un",
+   "sinonimos": [
+    "visita"
+   ]
+  },
+  {
+   "id": 8,
+   "descricao": "Diária",
+   "unidade": "diária",
+   "sinonimos": [
+    "diária",
+    "dia de trabalho"
+   ]
+  },
+  {
+   "id": 21,
+   "descricao": "Troca de pastilha de freio",
+   "unidade": "par",
+   "sinonimos": [
+    "pastilha",
+    "freio"
+   ]
+  },
+  {
+   "id": 22,
+   "descricao": "Troca de óleo e filtro",
+   "unidade": "un",
+   "sinonimos": [
+    "óleo",
+    "trocar óleo"
+   ]
+  },
+  {
+   "id": 23,
+   "descricao": "Troca de disco de freio",
+   "unidade": "par",
+   "sinonimos": [
+    "disco"
+   ]
+  },
+  {
+   "id": 24,
+   "descricao": "Mão de obra",
+   "unidade": "hora",
+   "sinonimos": [
+    "mão de obra",
+    "hora"
+   ]
+  }
+ ],
+ "casos": [
+  {
+   "nome": "Pedido simples",
+   "mensagem": "Orçamento pra Dona Maria, Rua das Flores 120. Trocar 6 tomadas e instalar 2 chuveiros.",
+   "esperado": {
+    "intencao": "orcamento",
+    "cliente_nome": "maria",
+    "itens": [
+     {
+      "id": 1,
+      "qtd": 6
+     },
+     {
+      "id": 2,
+      "qtd": 2
+     }
+    ]
+   }
+  },
+  {
+   "nome": "Número por extenso e erro de concordância",
+   "mensagem": "preciso de um orçamento pro seu Antônio, é pra trocar duas tomada e colocar um ventilador de teto",
+   "esperado": {
+    "intencao": "orcamento",
+    "cliente_nome": "antônio",
+    "itens": [
+     {
+      "id": 1,
+      "qtd": 2
+     },
+     {
+      "id": 4,
+      "qtd": 1
+     }
+    ]
+   }
+  },
+  {
+   "nome": "Fala com hesitação (como sai do áudio)",
+   "mensagem": "é... então, lá na casa da Juliana, tipo, uns três pontos de luz, e... deixa eu ver... uns vinte metros de fio",
+   "esperado": {
+    "intencao": "orcamento",
+    "cliente_nome": "juliana",
+    "itens": [
+     {
+      "id": 3,
+      "qtd": 3
+     },
+     {
+      "id": 5,
+      "qtd": 20
+     }
+    ]
+   }
+  },
+  {
+   "nome": "Meia dúzia",
+   "mensagem": "meia dúzia de tomadas e um disjuntor pro Carlos",
+   "esperado": {
+    "intencao": "orcamento",
+    "cliente_nome": "carlos",
+    "itens": [
+     {
+      "id": 1,
+      "qtd": 6
+     },
+     {
+      "id": 6,
+      "qtd": 1
+     }
+    ]
+   }
+  },
+  {
+   "nome": "Serviço fora da tabela",
+   "mensagem": "orçamento pro Pedro: instalar 1 chuveiro e consertar o portão eletrônico",
+   "esperado": {
+    "intencao": "orcamento",
+    "cliente_nome": "pedro",
+    "itens": [
+     {
+      "id": 2,
+      "qtd": 1
+     },
+     {
+      "id": null,
+      "contem": "port",
+      "qtd": 1
+     }
+    ]
+   }
+  },
+  {
+   "nome": "Diária e visita",
+   "mensagem": "vou precisar de duas diárias e uma visita técnica, a cliente é a Ana",
+   "esperado": {
+    "intencao": "orcamento",
+    "cliente_nome": "ana",
+    "itens": [
+     {
+      "id": 8,
+      "qtd": 2
+     },
+     {
+      "id": 7,
+      "qtd": 1
+     }
+    ]
+   }
+  },
+  {
+   "nome": "Sem nome de cliente",
+   "mensagem": "trocar 4 interruptores",
+   "esperado": {
+    "intencao": "orcamento",
+    "cliente_nome": null,
+    "itens": [
+     {
+      "id": 1,
+      "qtd": 4
+     }
+    ]
+   }
+  },
+  {
+   "nome": "Preço dito para um item",
+   "mensagem": "orçamento pra Bia, 3 tomadas e a fiação da cozinha eu faço por 300",
+   "esperado": {
+    "intencao": "orcamento",
+    "cliente_nome": "bia",
+    "itens": [
+     {
+      "id": 1,
+      "qtd": 3
+     },
+     {
+      "id": [
+       5,
+       null
+      ],
+      "qtd": 1,
+      "preco": 300
+     }
+    ]
+   }
+  },
+  {
+   "nome": "Endereço e telefone",
+   "mensagem": "Orçamento pro João Silva, rua Paraná 455, telefone 46 99999 1234, trocar 2 disjuntores",
+   "esperado": {
+    "intencao": "orcamento",
+    "cliente_nome": "joão",
+    "endereco": "paraná",
+    "telefone": "1234",
+    "itens": [
+     {
+      "id": 6,
+      "qtd": 2
+     }
+    ]
+   }
+  },
+  {
+   "nome": "Prazo e condição viram observação",
+   "mensagem": "pra Márcia, instalar 3 ventiladores, consigo fazer na sexta, pagamento metade antes",
+   "esperado": {
+    "intencao": "orcamento",
+    "cliente_nome": "márcia",
+    "observacoes": true,
+    "itens": [
+     {
+      "id": 4,
+      "qtd": 3
+     }
+    ]
+   }
+  },
+  {
+   "nome": "Medida quebrada",
+   "mensagem": "quinze metros e meio de cabo pra casa do Rafael",
+   "esperado": {
+    "intencao": "orcamento",
+    "cliente_nome": "rafael",
+    "itens": [
+     {
+      "id": 5,
+      "qtd": 15.5
+     }
+    ]
+   }
+  },
+  {
+   "nome": "Mesma coisa dita duas vezes",
+   "mensagem": "pra Simone: trocar a tomada da sala e a tomada da cozinha",
+   "esperado": {
+    "intencao": "orcamento",
+    "cliente_nome": "simone",
+    "itens": [
+     {
+      "id": 1,
+      "qtd": 2
+     }
+    ]
+   }
+  },
+  {
+   "nome": "Não inventar preço",
+   "mensagem": "orçamento pro Rafael, instalar 2 chuveiros e uns 5 metros de fio",
+   "esperado": {
+    "intencao": "orcamento",
+    "cliente_nome": "rafael",
+    "itens": [
+     {
+      "id": 2,
+      "qtd": 2
+     },
+     {
+      "id": 5,
+      "qtd": 5
+     }
+    ]
+   }
+  },
+  {
+   "nome": "Corrigir quantidade",
+   "mensagem": "na verdade são 8 tomadas",
+   "rascunho": {
+    "cliente": {
+     "nome": "Dona Maria",
+     "endereco": "Rua das Flores, 120",
+     "telefone": null
+    },
+    "itens": [
+     {
+      "descricao": "Troca de tomada ou interruptor",
+      "quantidade": 6,
+      "unidade": "un",
+      "item_preco_id": 1,
+      "preco_centavos": 4000,
+      "origem": "tabela"
+     },
+     {
+      "descricao": "Instalação de chuveiro",
+      "quantidade": 2,
+      "unidade": "un",
+      "item_preco_id": 2,
+      "preco_centavos": 12000,
+      "origem": "tabela"
+     }
+    ],
+    "observacoes": null,
+    "desconto": null
+   },
+   "esperado": {
+    "intencao": "orcamento",
+    "cliente_nome": "maria",
+    "itens": [
+     {
+      "id": 1,
+      "qtd": 8
+     },
+     {
+      "id": 2,
+      "qtd": 2
+     }
+    ]
+   }
+  },
+  {
+   "nome": "Remover item",
+   "mensagem": "tira o chuveiro",
+   "rascunho": {
+    "cliente": {
+     "nome": "Dona Maria",
+     "endereco": "Rua das Flores, 120",
+     "telefone": null
+    },
+    "itens": [
+     {
+      "descricao": "Troca de tomada ou interruptor",
+      "quantidade": 6,
+      "unidade": "un",
+      "item_preco_id": 1,
+      "preco_centavos": 4000,
+      "origem": "tabela"
+     },
+     {
+      "descricao": "Instalação de chuveiro",
+      "quantidade": 2,
+      "unidade": "un",
+      "item_preco_id": 2,
+      "preco_centavos": 12000,
+      "origem": "tabela"
+     }
+    ],
+    "observacoes": null,
+    "desconto": null
+   },
+   "esperado": {
+    "intencao": "orcamento",
+    "itens": [
+     {
+      "id": 1,
+      "qtd": 6
+     }
+    ]
+   }
+  },
+  {
+   "nome": "Adicionar item",
+   "mensagem": "coloca mais um ponto de luz",
+   "rascunho": {
+    "cliente": {
+     "nome": "Dona Maria",
+     "endereco": "Rua das Flores, 120",
+     "telefone": null
+    },
+    "itens": [
+     {
+      "descricao": "Troca de tomada ou interruptor",
+      "quantidade": 6,
+      "unidade": "un",
+      "item_preco_id": 1,
+      "preco_centavos": 4000,
+      "origem": "tabela"
+     },
+     {
+      "descricao": "Instalação de chuveiro",
+      "quantidade": 2,
+      "unidade": "un",
+      "item_preco_id": 2,
+      "preco_centavos": 12000,
+      "origem": "tabela"
+     }
+    ],
+    "observacoes": null,
+    "desconto": null
+   },
+   "esperado": {
+    "intencao": "orcamento",
+    "itens": [
+     {
+      "id": 1,
+      "qtd": 6
+     },
+     {
+      "id": 2,
+      "qtd": 2
+     },
+     {
+      "id": 3,
+      "qtd": 1
+     }
+    ]
+   }
+  },
+  {
+   "nome": "Desconto percentual",
+   "mensagem": "dá 10% de desconto",
+   "rascunho": {
+    "cliente": {
+     "nome": "Dona Maria",
+     "endereco": "Rua das Flores, 120",
+     "telefone": null
+    },
+    "itens": [
+     {
+      "descricao": "Troca de tomada ou interruptor",
+      "quantidade": 6,
+      "unidade": "un",
+      "item_preco_id": 1,
+      "preco_centavos": 4000,
+      "origem": "tabela"
+     },
+     {
+      "descricao": "Instalação de chuveiro",
+      "quantidade": 2,
+      "unidade": "un",
+      "item_preco_id": 2,
+      "preco_centavos": 12000,
+      "origem": "tabela"
+     }
+    ],
+    "observacoes": null,
+    "desconto": null
+   },
+   "esperado": {
+    "intencao": "orcamento",
+    "desconto_percentual": 10,
+    "itens": [
+     {
+      "id": 1,
+      "qtd": 6
+     },
+     {
+      "id": 2,
+      "qtd": 2
+     }
+    ]
+   }
+  },
+  {
+   "nome": "Fecha em valor",
+   "mensagem": "fecha em 400",
+   "rascunho": {
+    "cliente": {
+     "nome": "Dona Maria",
+     "endereco": "Rua das Flores, 120",
+     "telefone": null
+    },
+    "itens": [
+     {
+      "descricao": "Troca de tomada ou interruptor",
+      "quantidade": 6,
+      "unidade": "un",
+      "item_preco_id": 1,
+      "preco_centavos": 4000,
+      "origem": "tabela"
+     },
+     {
+      "descricao": "Instalação de chuveiro",
+      "quantidade": 2,
+      "unidade": "un",
+      "item_preco_id": 2,
+      "preco_centavos": 12000,
+      "origem": "tabela"
+     }
+    ],
+    "observacoes": null,
+    "desconto": null
+   },
+   "esperado": {
+    "intencao": "orcamento",
+    "total_desejado": 400,
+    "itens": [
+     {
+      "id": 1,
+      "qtd": 6
+     },
+     {
+      "id": 2,
+      "qtd": 2
+     }
+    ]
+   }
+  },
+  {
+   "nome": "Desconto em reais",
+   "mensagem": "tira 50 reais",
+   "rascunho": {
+    "cliente": {
+     "nome": "Dona Maria",
+     "endereco": "Rua das Flores, 120",
+     "telefone": null
+    },
+    "itens": [
+     {
+      "descricao": "Troca de tomada ou interruptor",
+      "quantidade": 6,
+      "unidade": "un",
+      "item_preco_id": 1,
+      "preco_centavos": 4000,
+      "origem": "tabela"
+     },
+     {
+      "descricao": "Instalação de chuveiro",
+      "quantidade": 2,
+      "unidade": "un",
+      "item_preco_id": 2,
+      "preco_centavos": 12000,
+      "origem": "tabela"
+     }
+    ],
+    "observacoes": null,
+    "desconto": null
+   },
+   "esperado": {
+    "intencao": "orcamento",
+    "desconto_valor": 50,
+    "itens": [
+     {
+      "id": 1,
+      "qtd": 6
+     },
+     {
+      "id": 2,
+      "qtd": 2
+     }
+    ]
+   }
+  },
+  {
+   "nome": "Preço de um item só neste orçamento",
+   "mensagem": "o chuveiro nesse sai 100",
+   "rascunho": {
+    "cliente": {
+     "nome": "Dona Maria",
+     "endereco": "Rua das Flores, 120",
+     "telefone": null
+    },
+    "itens": [
+     {
+      "descricao": "Troca de tomada ou interruptor",
+      "quantidade": 6,
+      "unidade": "un",
+      "item_preco_id": 1,
+      "preco_centavos": 4000,
+      "origem": "tabela"
+     },
+     {
+      "descricao": "Instalação de chuveiro",
+      "quantidade": 2,
+      "unidade": "un",
+      "item_preco_id": 2,
+      "preco_centavos": 12000,
+      "origem": "tabela"
+     }
+    ],
+    "observacoes": null,
+    "desconto": null
+   },
+   "esperado": {
+    "intencao": "orcamento",
+    "itens": [
+     {
+      "id": 1,
+      "qtd": 6
+     },
+     {
+      "id": 2,
+      "qtd": 2,
+      "preco": 100
+     }
+    ]
+   }
+  },
+  {
+   "nome": "Tirar desconto",
+   "mensagem": "tira o desconto",
+   "rascunho": {
+    "cliente": {
+     "nome": "Dona Maria",
+     "endereco": "Rua das Flores, 120",
+     "telefone": null
+    },
+    "itens": [
+     {
+      "descricao": "Troca de tomada ou interruptor",
+      "quantidade": 6,
+      "unidade": "un",
+      "item_preco_id": 1,
+      "preco_centavos": 4000,
+      "origem": "tabela"
+     },
+     {
+      "descricao": "Instalação de chuveiro",
+      "quantidade": 2,
+      "unidade": "un",
+      "item_preco_id": 2,
+      "preco_centavos": 12000,
+      "origem": "tabela"
+     }
+    ],
+    "observacoes": null,
+    "desconto": {
+     "tipo": "percentual",
+     "valor": 10
+    }
+   },
+   "esperado": {
+    "intencao": "orcamento",
+    "sem_desconto": true,
+    "itens": [
+     {
+      "id": 1,
+      "qtd": 6
+     },
+     {
+      "id": 2,
+      "qtd": 2
+     }
+    ]
+   }
+  },
+  {
+   "nome": "Manter desconto ao corrigir outra coisa",
+   "mensagem": "são 7 tomadas",
+   "rascunho": {
+    "cliente": {
+     "nome": "Dona Maria",
+     "endereco": "Rua das Flores, 120",
+     "telefone": null
+    },
+    "itens": [
+     {
+      "descricao": "Troca de tomada ou interruptor",
+      "quantidade": 6,
+      "unidade": "un",
+      "item_preco_id": 1,
+      "preco_centavos": 4000,
+      "origem": "tabela"
+     },
+     {
+      "descricao": "Instalação de chuveiro",
+      "quantidade": 2,
+      "unidade": "un",
+      "item_preco_id": 2,
+      "preco_centavos": 12000,
+      "origem": "tabela"
+     }
+    ],
+    "observacoes": null,
+    "desconto": {
+     "tipo": "percentual",
+     "valor": 10
+    }
+   },
+   "esperado": {
+    "intencao": "orcamento",
+    "desconto_percentual": 10,
+    "itens": [
+     {
+      "id": 1,
+      "qtd": 7
+     },
+     {
+      "id": 2,
+      "qtd": 2
+     }
+    ]
+   }
+  },
+  {
+   "nome": "Mensagem encaminhada do cliente",
+   "mensagem": "[Mensagem ENCAMINHADA do cliente Maria Souza] Oi, consegue fazer por 600?",
+   "esperado": {
+    "intencao": "editar"
+   }
+  },
+  {
+   "nome": "Mudança citando o número",
+   "mensagem": "no orçamento 5 o cliente pediu pra tirar o ventilador",
+   "esperado": {
+    "intencao": "editar",
+    "numero_orcamento": 5
+   }
+  },
+  {
+   "nome": "Mudança citando o cliente",
+   "mensagem": "a Dona Cleusa pediu desconto no orçamento dela",
+   "esperado": {
+    "intencao": "editar",
+    "cliente_nome": "cleusa"
+   }
+  },
+  {
+   "nome": "Recebimento com valor e nome",
+   "mensagem": "recebi 850 da Dona Maria",
+   "esperado": {
+    "intencao": "pagamento",
+    "valor_pago": 850,
+    "cliente_nome": "maria"
+   }
+  },
+  {
+   "nome": "Recebimento pelo número, sem valor",
+   "mensagem": "o orçamento 3 foi pago",
+   "esperado": {
+    "intencao": "pagamento",
+    "numero_orcamento": 3,
+    "valor_pago": null
+   }
+  },
+  {
+   "nome": "Entrada parcial",
+   "mensagem": "a Juliana pagou 300 de entrada",
+   "esperado": {
+    "intencao": "pagamento",
+    "valor_pago": 300,
+    "cliente_nome": "juliana"
+   }
+  },
+  {
+   "nome": "Atualizar preços",
+   "mensagem": "chuveiro agora é 130 e ventilador de teto 90",
+   "esperado": {
+    "intencao": "tabela_precos",
+    "precos": [
+     {
+      "contem": "chuveiro",
+      "preco": 130
+     },
+     {
+      "contem": "ventilador",
+      "preco": 90
+     }
+    ]
+   }
+  },
+  {
+   "nome": "Cadastro só com números na ordem",
+   "mensagem": "40, 120, 60",
+   "contexto": "O profissional está cadastrando a tabela de preços. Ele recebeu esta lista numerada de serviços comuns: 1. Troca de tomada ou interruptor (un); 2. Instalação de chuveiro (un); 3. Ponto de luz (un). Se responder só com números, associe na ordem da lista. Use a descrição e a unidade da lista quando o serviço for dela. Inclua só os serviços com valor dito.",
+   "esperado": {
+    "precos": [
+     {
+      "contem": "tomada",
+      "preco": 40
+     },
+     {
+      "contem": "chuveiro",
+      "preco": 120
+     },
+     {
+      "contem": "luz",
+      "preco": 60
+     }
+    ]
+   }
+  },
+  {
+   "nome": "Preços em frase",
+   "mensagem": "cobro 250 a diária e 80 a visita",
+   "esperado": {
+    "intencao": "tabela_precos",
+    "precos": [
+     {
+      "contem": "diária",
+      "preco": 250
+     },
+     {
+      "contem": "visita",
+      "preco": 80
+     }
+    ]
+   }
+  },
+  {
+   "nome": "Cumprimento",
+   "mensagem": "bom dia, tudo bem?",
+   "esperado": {
+    "intencao": "outro"
+   }
+  },
+  {
+   "nome": "Agradecimento",
+   "mensagem": "valeu, obrigado!",
+   "esperado": {
+    "intencao": "outro"
+   }
+  },
+  {
+   "nome": "Oficina: preço colado no item",
+   "mensagem": "Orçamento pro Gol do seu João, troca de pastilha 180 e troca de óleo",
+   "esperado": {
+    "intencao": "orcamento",
+    "cliente_nome": "joao",
+    "itens": [
+     {
+      "id": 21,
+      "qtd": 1,
+      "preco": 180
+     },
+     {
+      "id": 22,
+      "qtd": 1
+     }
+    ]
+   }
+  },
+  {
+   "nome": "Oficina: preços com cliente não viram tabela",
+   "mensagem": "pro Seu Carlos: pastilha sai 220, disco 350, e troca de óleo",
+   "esperado": {
+    "intencao": "orcamento",
+    "cliente_nome": "carlos",
+    "itens": [
+     {
+      "id": 21,
+      "qtd": 1,
+      "preco": 220
+     },
+     {
+      "id": 23,
+      "qtd": 1,
+      "preco": 350
+     },
+     {
+      "id": 22,
+      "qtd": 1
+     }
+    ]
+   }
+  },
+  {
+   "nome": "Oficina: 'nesse carro eu cobro'",
+   "mensagem": "orçamento pra Bia, troca de óleo e a pastilha nesse carro eu cobro 250",
+   "esperado": {
+    "intencao": "orcamento",
+    "cliente_nome": "bia",
+    "itens": [
+     {
+      "id": 22,
+      "qtd": 1
+     },
+     {
+      "id": 21,
+      "qtd": 1,
+      "preco": 250
+     }
+    ]
+   }
+  },
+  {
+   "nome": "Oficina: horas não são preço",
+   "mensagem": "Hilux do Marcos, pastilha de freio, disco de freio por 480 o par, duas horas de mão de obra",
+   "esperado": {
+    "intencao": "orcamento",
+    "cliente_nome": "marcos",
+    "itens": [
+     {
+      "id": 21,
+      "qtd": 1
+     },
+     {
+      "id": 23,
+      "qtd": 1,
+      "preco": 480
+     },
+     {
+      "id": 24,
+      "qtd": 2
+     }
+    ]
+   }
+  },
+  {
+   "nome": "Oficina: preço por extenso com hesitação",
+   "mensagem": "é... pro Fernando, troca de óleo, deixa eu ver, cento e cinquenta, e pastilha",
+   "esperado": {
+    "intencao": "orcamento",
+    "cliente_nome": "fernando",
+    "itens": [
+     {
+      "id": 22,
+      "qtd": 1,
+      "preco": 150
+     },
+     {
+      "id": 21,
+      "qtd": 1
+     }
+    ]
+   }
+  }
+ ]
+}

@@ -1,0 +1,10 @@
+python-telegram-bot>=21
+openai>=1.40
+sqlalchemy>=2.0
+fpdf2>=2.7
+qrcode[pil]>=7
+num2words>=0.5
+python-dotenv>=1.0
+tzdata>=2024.1; sys_platform == "win32"
+pytest>=8
+pymupdf>=1.24
