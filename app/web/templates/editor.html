@@ -59,6 +59,9 @@
   <label for="obs">Observações</label>
   <textarea id="obs" name="observacoes" rows="3" maxlength="1000">{{ form.observacoes }}</textarea>
 
+  <label for="cond">Condições (uma por linha, assim: Garantia: 90 dias)</label>
+  <textarea id="cond" name="condicoes" rows="4" maxlength="2000">{{ form.condicoes }}</textarea>
+
   <button class="btn" type="submit" style="margin-top:24px">Salvar e gerar PDF</button>
 </form>
 {% endblock %}

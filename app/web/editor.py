@@ -24,6 +24,7 @@ def _formulario(dados: dict) -> dict:
     """Rascunho -> valores de texto para os campos do formulário."""
     d = dados.get("desconto") or {}
     return {"cliente": dados.get("cliente") or {}, "observacoes": dados.get("observacoes") or "",
+            "condicoes": "\n".join(f"{c['rotulo']}: {c['texto']}" for c in dados.get("condicoes") or []),
             "itens": [{"descricao": i["descricao"], "quantidade": qtd_fmt(i["quantidade"]), "unidade": i.get("unidade") or "",
                        "preco": valor_curto(i["preco_centavos"] or 0), "item_preco_id": i.get("item_preco_id") or ""}
                       for i in dados.get("itens") or []],
@@ -52,6 +53,8 @@ async def salvar(request: Request, token: str):
     dados = {"cliente": {"nome": f.get("cliente_nome"), "endereco": f.get("cliente_endereco"),
                          "telefone": f.get("cliente_telefone")},
              "itens": itens, "observacoes": f.get("observacoes"),
+             "condicoes": [dict(zip(("rotulo", "texto"), (p.strip() for p in linha.split(":", 1))))
+                           for linha in (f.get("condicoes") or "").splitlines() if ":" in linha],
              "desconto": {"tipo": f.get("desconto_tipo") or None, "valor": f.get("desconto_valor")}}
     with request.app.state.Sessao() as s:
         link, prof, orc = _carregar(s, token)
@@ -60,6 +63,7 @@ async def salvar(request: Request, token: str):
     erros, respostas, novo_id = request.app.state.nucleo.salvar_edicao(prof_id, orc_id, dados)
     if erros:
         form = {"cliente": dados["cliente"], "observacoes": dados["observacoes"] or "", "itens": itens,
+                "condicoes": f.get("condicoes") or "",
                 "desconto_tipo": dados["desconto"]["tipo"] or "", "desconto_valor": dados["desconto"]["valor"] or ""}
         return pagina(request, "editor.html", 422, **cores, titulo=titulo, form=form, erros=erros)
     with request.app.state.Sessao() as s:  # o link do rascunho passa a apontar para o orçamento gerado

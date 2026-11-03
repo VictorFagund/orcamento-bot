@@ -41,8 +41,35 @@ def montar_rascunho(dados_ia: dict, tabela: dict[int, dict]) -> dict:
         "cliente": {k: cliente.get(k) for k in ("nome", "endereco", "telefone")},
         "itens": itens,
         "observacoes": dados_ia.get("observacoes"),
+        "condicoes": limpar_condicoes(dados_ia.get("condicoes")),
         "desconto": _desconto(dados_ia),
     }
+
+
+def _chave(rotulo: str) -> str:
+    import unicodedata
+    return unicodedata.normalize("NFKD", rotulo).encode("ascii", "ignore").decode().lower().strip()
+
+
+def limpar_condicoes(condicoes) -> list[dict]:
+    """Só pares rótulo/texto preenchidos, tamanhos limitados, sem rótulo repetido (o último vence)."""
+    saida: dict[str, dict] = {}
+    for c in condicoes or []:
+        if not isinstance(c, dict):
+            continue
+        rotulo = " ".join(str(c.get("rotulo") or "").split())[:40]
+        texto = " ".join(str(c.get("texto") or "").split())[:300]
+        if rotulo and texto:
+            saida[_chave(rotulo)] = {"rotulo": rotulo[0].upper() + rotulo[1:], "texto": texto}
+    return list(saida.values())
+
+
+def juntar_condicoes(padrao, do_orcamento) -> list[dict]:
+    """As do orçamento substituem as padrão de mesmo rótulo (sem ligar para acento e maiúscula)."""
+    padrao, do_orcamento = limpar_condicoes(padrao), limpar_condicoes(do_orcamento)
+    especificas = {_chave(c["rotulo"]): c for c in do_orcamento}
+    juntas = [especificas.pop(_chave(c["rotulo"]), c) for c in padrao]
+    return juntas + list(especificas.values())
 
 
 def _desconto(dados_ia: dict) -> dict | None:

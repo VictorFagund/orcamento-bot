@@ -17,7 +17,7 @@ _NUM = {"type": ["number", "null"]}
 SCHEMA = {
     "type": "object",
     "additionalProperties": False,
-    "required": ["intencao", "numero_orcamento", "cliente", "itens", "precos", "observacoes",
+    "required": ["intencao", "numero_orcamento", "cliente", "itens", "precos", "observacoes", "condicoes",
                  "desconto_percentual", "desconto_valor", "total_desejado", "valor_pago"],
     "properties": {
         "intencao": {"type": "string", "enum": ["orcamento", "editar", "tabela_precos", "pagamento", "outro"]},
@@ -62,6 +62,11 @@ SCHEMA = {
             },
         },
         "observacoes": {"type": ["string", "null"]},
+        "condicoes": {
+            "type": "array",
+            "items": {"type": "object", "additionalProperties": False, "required": ["rotulo", "texto"],
+                      "properties": {"rotulo": {"type": "string"}, "texto": {"type": "string"}}},
+        },
         "desconto_percentual": _NUM,
         "desconto_valor": _NUM,
         "total_desejado": _NUM,
@@ -111,7 +116,10 @@ Para "orcamento":
 - Se houver um ORÇAMENTO ATUAL, devolva o estado COMPLETO já corrigido: todos os itens (mantenha os que não
   mudaram, inclusive preco_informado anteriores), cliente, observacoes e o desconto atual (a menos que a
   mensagem mude ou remova o desconto).
-- "observacoes": prazos, condições ou detalhes que não são itens (ou null).
+- "observacoes": detalhes que não são itens nem condições (ou null).
+- "condicoes": condições ditas para ESTE orçamento, como garantia, prazo de execução, material incluso ou não,
+  visita técnica. Formato {"rotulo": "Garantia", "texto": "6 meses"}, {"rotulo": "Prazo", "texto": "3 dias úteis"}.
+  Só o que foi dito; senão, lista vazia. Com ORÇAMENTO ATUAL, mantenha as condições que ele já tem.
 
 Para "tabela_precos": preencha "precos" com descricao, unidade, preco (número em reais) e "sinonimos"
 (2 a 4 formas comuns de se referir ao mesmo serviço). Deixe "itens" vazio.
@@ -204,6 +212,7 @@ class IAOpenAI:
 def completar(dados: dict) -> dict:
     """Garante que todas as chaves existem (modelos no modo compatível às vezes omitem alguma)."""
     base = {"intencao": "outro", "numero_orcamento": None, "itens": [], "precos": [], "observacoes": None,
+            "condicoes": [],
             "desconto_percentual": None, "desconto_valor": None, "total_desejado": None, "valor_pago": None}
     dados = {**base, **{k: v for k, v in (dados or {}).items() if v is not None or k not in base}}
     cli = dados.get("cliente") or {}
@@ -231,6 +240,7 @@ def rascunho_para_ia(rascunho: dict) -> dict:
             for i in rascunho.get("itens", [])
         ],
         "observacoes": rascunho.get("observacoes"),
+        "condicoes": rascunho.get("condicoes") or [],
         "desconto_percentual": desconto.get("valor") if desconto.get("tipo") == "percentual" else None,
         "desconto_valor": desconto.get("valor") if desconto.get("tipo") == "valor" else None,
         "total_desejado": (desconto.get("valor") if desconto.get("tipo") == "total"

@@ -304,9 +304,11 @@ def _totais(pdf, orc, cor, modelo):
 
 
 def _condicoes(pdf, orc, cor):
+    condicoes = [(c["rotulo"], c["texto"]) for c in (getattr(orc, "condicoes", None) or [])]
     for rotulo, valor in (
         ("Observações", orc.observacoes),
         ("Forma de pagamento", orc.pagamento),
+        *condicoes,
         ("Validade", f"Este orçamento vale até {orc.validade:%d/%m/%Y}."),
     ):
         if not valor:

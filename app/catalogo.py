@@ -143,6 +143,25 @@ def _norm(texto: str) -> str:
     return re.sub(r"\s+", " ", unicodedata.normalize("NFKD", texto.lower()).encode("ascii", "ignore").decode())
 
 
+# Condições comuns por ofício (mesmas chaves do CATALOGO), oferecidas em /condicoes
+CONDICOES_SUGERIDAS = {
+    "mecanico": [("Garantia", "90 dias na mão de obra"), ("Peças", "Novas, com nota fiscal do fornecedor")],
+    "eletricista": [("Garantia", "90 dias no serviço"), ("Material", "Por conta do cliente")],
+    "ar-condicionado": [("Garantia", "90 dias na instalação"), ("Visita técnica", "Abatida se fechar o serviço")],
+}
+CONDICOES_GERAIS = [("Prazo", "A combinar"), ("Material", "Incluso no valor")]
+
+
+def condicoes_da_profissao(profissao: str | None) -> list[tuple[str, str]]:
+    p = _norm(profissao or "")
+    for oficio, (chaves, _) in CATALOGO.items():
+        if any(_norm(c) in p for c in chaves):
+            proprias = CONDICOES_SUGERIDAS.get(oficio, [])
+            rotulos = {r for r, _ in proprias}
+            return proprias + [c for c in CONDICOES_GERAIS if c[0] not in rotulos]
+    return list(CONDICOES_GERAIS)
+
+
 def servicos_da_profissao(profissao: str | None) -> list[tuple[str, str, list[str]]]:
     p = _norm(profissao or "")
     for chaves, servicos in CATALOGO.values():

@@ -41,6 +41,7 @@ Comandos:
 /perfil - ver e corrigir seus dados
 /modelo - escolher o visual do PDF
 /cor - escolher a cor do PDF
+/condicoes - garantia, prazo e outras condições que vão em todo orçamento
 /cancelar - descartar o orçamento em andamento"""
 
 BOAS_VINDAS = ("Olá! 👋 Eu faço orçamentos profissionais em PDF a partir de um áudio seu, com Pix pronto pro "
@@ -106,6 +107,9 @@ REATIVACAO_CLIENTE = ("Olá{saudacao}! Tudo bem? Já faz {meses} meses do servi�
 
 LINK_CLIENTE = ("Olá! Segue o orçamento Nº {numero:04d}. Por este link você vê tudo, aprova e paga pelo celular:\n"
                 "{link}\n{assinatura}")
+COMO_CONDICAO = ("Para incluir ou mudar: /condicao Garantia: 90 dias na mão de obra\n"
+                 "Para tirar: /condicao remover Garantia\n"
+                 "Falou uma condição no áudio (\"garantia de 6 meses nesse\")? Ela vale só para aquele orçamento.")
 LINK_EDITOR = ("🌐 Abra para editar tudo no navegador (vale por 7 dias, não compartilhe):\n{link}\n\n"
                "Ao salvar, eu gero o PDF novo e mando aqui.")
 APROVADO_LINK = "✅ {nome} aprovou o orçamento Nº {numero:04d} ({total}) pelo link!{pix}"

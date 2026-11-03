@@ -26,6 +26,8 @@ class Profissional(Base):
     logo_path: Mapped[str | None] = mapped_column(String(300))
     modelo_pdf: Mapped[str | None] = mapped_column(String(20))  # visual do orçamento (app/pdf.py MODELOS)
     cor_pdf: Mapped[str | None] = mapped_column(String(20))
+    # Condições que entram em todo orçamento: [{"rotulo": "Garantia", "texto": "90 dias"}, ...]
+    condicoes_padrao: Mapped[list | None] = mapped_column(JSON)
     sinal_percentual: Mapped[int | None]  # % do total pedido como sinal no link do cliente (None = 50; 0 = total)
     # Em que ponto da conversa a pessoa está (cadastro, conferindo orçamento etc.)
     estado: Mapped[str] = mapped_column(String(40), default="CADASTRO_NOME")
@@ -80,6 +82,7 @@ class Orcamento(Base):
     revisao: Mapped[int] = mapped_column(default=1)  # sobe a cada alteração depois de enviado
     observacoes: Mapped[str | None] = mapped_column(String(1000))
     pagamento: Mapped[str | None] = mapped_column(String(200))
+    condicoes: Mapped[list | None] = mapped_column(JSON)  # já juntas: padrão do profissional + as deste orçamento
     validade: Mapped[date]
     pdf_path: Mapped[str | None] = mapped_column(String(300))
     criado_em: Mapped[datetime] = mapped_column(default=datetime.now)
@@ -177,6 +180,7 @@ _NOVAS_COLUNAS = {
         "modelo_pdf": "VARCHAR(20)",
         "cor_pdf": "VARCHAR(20)",
         "sinal_percentual": "INTEGER",
+        "condicoes_padrao": "JSON",
     },
     "item_preco": {
         "recorrencia_meses": "INTEGER",
@@ -191,6 +195,7 @@ _NOVAS_COLUNAS = {
         "desconto_centavos": "INTEGER NOT NULL DEFAULT 0",
         "desconto_percentual": "FLOAT",
         "revisao": "INTEGER NOT NULL DEFAULT 1",
+        "condicoes": "JSON",
     },
 }
 

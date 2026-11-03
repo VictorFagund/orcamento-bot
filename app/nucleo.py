@@ -445,7 +445,7 @@ class Nucleo:
         return {"cliente": {"nome": cli.nome if cli else None, "endereco": cli.endereco if cli else None,
                             "telefone": cli.telefone if cli else None},
                 "itens": itens, "observacoes": orc.observacoes, "desconto": desconto,
-                "editando_id": orc.id, "editando_numero": orc.numero}
+                "condicoes": orc.condicoes or [], "editando_id": orc.id, "editando_numero": orc.numero}
 
     def _finalizar(self, s, prof):
         r = prof.rascunho
@@ -465,7 +465,9 @@ class Nucleo:
                       enviado_em=datetime.now(), lembretes=0,
                       desconto_centavos=calculo.valor_desconto(r),
                       desconto_percentual=desconto.get("valor") if desconto.get("tipo") == "percentual" else None,
-                      observacoes=r.get("observacoes"), validade=date.today() + timedelta(days=config.VALIDADE_DIAS))
+                      observacoes=r.get("observacoes"), validade=date.today() + timedelta(days=config.VALIDADE_DIAS),
+                      condicoes=(calculo.limpar_condicoes(r.get("condicoes")) if r.get("condicoes_finais")
+                                 else calculo.juntar_condicoes(prof.condicoes_padrao, r.get("condicoes"))))
 
         orc = s.get(Orcamento, r["editando_id"]) if r.get("editando_id") else None
         if orc and orc.profissional_id == prof.id:  # revisão de um orçamento já enviado
@@ -556,6 +558,25 @@ class Nucleo:
                 return [Resposta(f"✅ Seus orçamentos agora saem no modelo {pdf_mod.MODELOS[arg][0]}. "
                                  "Quer trocar a cor também?", botoes=self._botoes_cores())]
             return self._previas_modelos(prof)
+        if cmd == "/condicoes":
+            return self._mostrar_condicoes(prof)
+        if cmd == "/condicao":
+            resto = texto.split(None, 1)[1].strip() if len(partes) > 1 else ""
+            if _norm(resto).startswith("remover "):
+                alvo = _norm(resto[8:])
+                antes = prof.condicoes_padrao or []
+                prof.condicoes_padrao = [c for c in antes if _norm(c["rotulo"]) != alvo]
+                if len(prof.condicoes_padrao) == len(antes):
+                    return [Resposta("Não achei essa condição. Veja as suas em /condicoes.")]
+                return [Resposta("🗑️ Condição removida.")] + self._mostrar_condicoes(prof)
+            if ":" not in resto:
+                return [Resposta("Mande assim: /condicao Garantia: 90 dias na mão de obra")]
+            rotulo, valor = resto.split(":", 1)
+            nova = calculo.limpar_condicoes([{"rotulo": rotulo, "texto": valor}])
+            if not nova:
+                return [Resposta("Mande assim: /condicao Garantia: 90 dias na mão de obra")]
+            prof.condicoes_padrao = calculo.juntar_condicoes(prof.condicoes_padrao, nova)
+            return [Resposta(f"✅ \"{nova[0]['rotulo']}: {nova[0]['texto']}\" vai em todos os orçamentos.")]
         if cmd == "/cor":
             if arg not in pdf_mod.CORES:
                 return [Resposta("Escolha a cor:", botoes=self._botoes_cores())]
@@ -1085,8 +1106,10 @@ class Nucleo:
     def dados_editor(self, prof, orc) -> dict:
         """Estado atual para preencher o formulário do editor (orc=None: o rascunho em conferência)."""
         r = self._orc_para_rascunho(prof, orc) if orc is not None else copy.deepcopy(prof.rascunho or {})
+        condicoes = (r.get("condicoes") or []) if orc is not None else calculo.juntar_condicoes(
+            prof.condicoes_padrao, r.get("condicoes"))
         return {"cliente": r.get("cliente") or {}, "itens": r.get("itens") or [], "observacoes": r.get("observacoes"),
-                "desconto": r.get("desconto")}
+                "desconto": r.get("desconto"), "condicoes": condicoes}
 
     def validar_edicao(self, prof, dados: dict) -> tuple[list[str], dict | None]:
         """Formulário do editor -> (erros, rascunho). Com qualquer erro, o rascunho é None e nada é salvo."""
@@ -1135,7 +1158,8 @@ class Nucleo:
         obs = " ".join(str(dados.get("observacoes") or "").split())[:1000] or None
         if erros:
             return erros, None
-        return [], {"cliente": cliente, "itens": itens, "observacoes": obs, "desconto": desconto}
+        return [], {"cliente": cliente, "itens": itens, "observacoes": obs, "desconto": desconto,
+                    "condicoes": calculo.limpar_condicoes(dados.get("condicoes")), "condicoes_finais": True}
 
     def salvar_edicao(self, prof_id: int, orc_id: int | None, dados: dict) -> tuple[list[str], list[Resposta], int | None]:
         """Salva o que veio do editor: gera a revisão (ou o orçamento novo, se for o rascunho) e o PDF.
@@ -1195,6 +1219,15 @@ class Nucleo:
         instrucao = f"[Mensagem ENCAMINHADA do cliente {nome}] {texto[:500]}"
         return [aviso] + self._iniciar_edicao(s, prof, orc, instrucao)
 
+    def _mostrar_condicoes(self, prof) -> list[Resposta]:
+        atuais = prof.condicoes_padrao or []
+        texto = ("📌 Condições que vão em todo orçamento:\n" + "\n".join(f"• {c['rotulo']}: {c['texto']}" for c in atuais)
+                 if atuais else "📌 Você ainda não tem condições padrão.")
+        tem = {_norm(c["rotulo"]) for c in atuais}
+        sugestoes = [(r, t) for r, t in catalogo.condicoes_da_profissao(prof.profissao) if _norm(r) not in tem]
+        botoes = [[(f"+ {r}: {t}"[:60], f"/condicao {r}: {t}"[:64])] for r, t in sugestoes][:5]
+        return [Resposta(texto + "\n\n" + textos.COMO_CONDICAO, botoes=botoes or None)]
+
     def _pasta_previas(self, prof) -> str:
         return os.path.join(self.pasta, "previas", str(prof.id))
 
@@ -1238,6 +1271,9 @@ class Nucleo:
         nota = "\n\n✏️ = preço só deste orçamento (sua tabela não muda)" if any(
             i.get("origem") == "informado" for i in r["itens"]) else ""
         obs = f"\n\n📝 {r['observacoes']}" if r.get("observacoes") else ""
+        condicoes = r.get("condicoes") or []
+        if condicoes:
+            obs += "\n\n" + "\n".join(f"📌 {c['rotulo']}: {c['texto']}" for c in condicoes)
         topo = cabecalho + (f"\n{para}" if para else "")
         return (f"{topo}\n\n" + "\n".join(linhas) + valores +
                 f"\n\n💰 Total: {calculo.reais(calculo.total(r))}{nota}{obs}"

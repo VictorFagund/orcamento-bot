@@ -49,6 +49,7 @@ def orcamento(prof, orc) -> dict:
         "subtotal": reais(orc.total_centavos + desconto) if desconto else None,
         "desconto": reais(abs(desconto)) if desconto else None, "acrescimo": desconto < 0,
         "total": reais(orc.total_centavos), "pagamento": orc.pagamento, "observacoes": orc.observacoes,
+        "condicoes": orc.condicoes or [],
         "situacao": situacao(orc),
         "sinal": reais(sinal), "sinal_pct": pct if 0 < pct < 100 else None,
         "pix_codigo": pix_codigo, "pix_qr": qr_data_uri(pix_codigo) if pix_codigo else None,

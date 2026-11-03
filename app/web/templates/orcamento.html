@@ -28,6 +28,7 @@
 
   {% if observacoes %}<div class="rotulo">Observações</div><p style="margin:0">{{ observacoes }}</p>{% endif %}
   {% if pagamento %}<div class="rotulo">Forma de pagamento</div><p style="margin:0">{{ pagamento }}</p>{% endif %}
+  {% for c in condicoes %}<div class="rotulo">{{ c.rotulo }}</div><p style="margin:0">{{ c.texto }}</p>{% endfor %}
   <div class="rotulo">Validade</div><p style="margin:0">Este orçamento vale até {{ validade }}.</p>
 
   {% if situacao == "aberto" and not aceite %}
