@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block titulo %}Editar · {{ titulo }}{% endblock %}
+{% block corpo %}
+<style>
+  .item { border: 1.5px solid var(--linha); border-radius: 12px; padding: 12px; margin-bottom: 12px; }
+  .linha { display: grid; grid-template-columns: 1fr 1fr 1.3fr; gap: 8px; }
+  .linha label { margin-top: 8px; }
+  .tirar { background: none; border: 0; color: #8a1c1c; font: inherit; font-size: .9rem; padding: 8px 0 0; cursor: pointer; }
+  .duas { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+</style>
+<div class="topo"><h1>{{ titulo }}</h1><p>Edite o que quiser. Ao salvar, o PDF novo vai para o seu chat.</p></div>
+<form class="conteudo" method="post">
+  {% if erros %}<div class="aviso erro"><b>Corrija antes de salvar:</b><ul style="margin:6px 0 0;padding-left:18px">{% for e in erros %}<li>{{ e }}</li>{% endfor %}</ul></div>{% endif %}
+
+  <div class="rotulo">Cliente</div>
+  <label for="cn">Nome</label><input id="cn" name="cliente_nome" maxlength="120" value="{{ form.cliente.nome or '' }}">
+  <label for="ce">Endereço</label><input id="ce" name="cliente_endereco" maxlength="250" value="{{ form.cliente.endereco or '' }}">
+  <label for="ct">Telefone</label><input id="ct" name="cliente_telefone" maxlength="40" inputmode="tel" value="{{ form.cliente.telefone or '' }}">
+
+  <div class="rotulo" style="margin-top:24px">Serviços e materiais</div>
+  <div id="itens">
+  {% for i in form.itens %}
+    <div class="item">
+      <input type="hidden" name="item_preco_id" value="{{ i.item_preco_id }}">
+      <label>Descrição</label><input name="descricao" maxlength="300" value="{{ i.descricao }}">
+      <div class="linha">
+        <div><label>Qtd</label><input name="quantidade" inputmode="decimal" value="{{ i.quantidade }}"></div>
+        <div><label>Unidade</label><input name="unidade" maxlength="30" placeholder="un" value="{{ i.unidade }}"></div>
+        <div><label>Preço (R$)</label><input name="preco" inputmode="decimal" value="{{ i.preco }}"></div>
+      </div>
+      <button type="button" class="tirar" onclick="this.closest('.item').remove()">Remover este item</button>
+    </div>
+  {% endfor %}
+  </div>
+  <template id="novo">
+    <div class="item">
+      <input type="hidden" name="item_preco_id" value="">
+      <label>Descrição</label><input name="descricao" maxlength="300">
+      <div class="linha">
+        <div><label>Qtd</label><input name="quantidade" inputmode="decimal" value="1"></div>
+        <div><label>Unidade</label><input name="unidade" maxlength="30" placeholder="un"></div>
+        <div><label>Preço (R$)</label><input name="preco" inputmode="decimal"></div>
+      </div>
+      <button type="button" class="tirar" onclick="this.closest('.item').remove()">Remover este item</button>
+    </div>
+  </template>
+  <button type="button" class="btn claro" onclick="document.getElementById('itens').append(document.getElementById('novo').content.cloneNode(true))">+ Adicionar item</button>
+
+  <div class="rotulo" style="margin-top:24px">Desconto</div>
+  <div class="duas">
+    <select name="desconto_tipo" aria-label="Tipo de desconto">
+      <option value="" {% if not form.desconto_tipo %}selected{% endif %}>Sem desconto</option>
+      <option value="valor" {% if form.desconto_tipo == 'valor' %}selected{% endif %}>Em reais</option>
+      <option value="percentual" {% if form.desconto_tipo == 'percentual' %}selected{% endif %}>Em %</option>
+    </select>
+    <input name="desconto_valor" inputmode="decimal" aria-label="Valor do desconto" value="{{ form.desconto_valor }}">
+  </div>
+
+  <label for="obs">Observações</label>
+  <textarea id="obs" name="observacoes" rows="3" maxlength="1000">{{ form.observacoes }}</textarea>
+
+  <button class="btn" type="submit" style="margin-top:24px">Salvar e gerar PDF</button>
+</form>
+{% endblock %}

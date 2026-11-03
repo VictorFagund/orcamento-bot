@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block titulo %}Salvo{% endblock %}
+{% block corpo %}
+<div class="topo"><h1>Salvo!</h1></div>
+<div class="conteudo">
+  <div class="aviso ok">O PDF novo já foi para o seu chat. É só encaminhar para o cliente.</div>
+  <a class="btn claro" href="/e/{{ token }}">Editar de novo</a>
+</div>
+{% endblock %}

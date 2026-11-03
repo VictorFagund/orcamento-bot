@@ -106,6 +106,8 @@ REATIVACAO_CLIENTE = ("Olá{saudacao}! Tudo bem? Já faz {meses} meses do servi�
 
 LINK_CLIENTE = ("Olá! Segue o orçamento Nº {numero:04d}. Por este link você vê tudo, aprova e paga pelo celular:\n"
                 "{link}\n{assinatura}")
+LINK_EDITOR = ("🌐 Abra para editar tudo no navegador (vale por 7 dias, não compartilhe):\n{link}\n\n"
+               "Ao salvar, eu gero o PDF novo e mando aqui.")
 APROVADO_LINK = "✅ {nome} aprovou o orçamento Nº {numero:04d} ({total}) pelo link!{pix}"
 
 CADASTRO_PRONTO = ("✅ Cadastro pronto! Já pode mandar seu primeiro orçamento.\n\n"

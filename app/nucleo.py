@@ -46,7 +46,8 @@ class Resposta:
 AJUDA = textos.AJUDA
 PULAR_BOTAO = [[("⏭️ Pular", "pular")]]
 BOTOES_RESUMO = [[("✅ Está certo, gerar PDF", "ok")],
-                 [("✏️ Corrigir algo", "/corrigir"), ("🗑️ Descartar", "cancelar")]]
+                 [("✏️ Corrigir algo", "/corrigir"), ("🗑️ Descartar", "cancelar")],
+                 [("🌐 Editar no navegador", "/editarweb")]]
 BOTOES_MENU = [[("📝 Como fazer um orçamento", "/exemplo")],
                [("💲 Minha tabela", "/precos"), ("📂 Orçamentos", "/orcamentos")],
                [("💰 A receber", "/areceber"), ("🎨 Visual do PDF", "/modelo")],
@@ -55,7 +56,7 @@ BOTOES_MENU = [[("📝 Como fazer um orçamento", "/exemplo")],
 
 def botoes_pos_envio(n: int):
     return [[("👍 Cliente aprovou", f"/aprovado {n}"), ("👎 Recusou", f"/recusado {n}")],
-            [("💰 Já recebi", f"/pago {n}")]]
+            [("💰 Já recebi", f"/pago {n}"), ("🌐 Editar no navegador", f"/editarweb {n}")]]
 
 CONFIRMAR = {"ok", "sim", "s", "confirma", "confirmo", "confirmar", "pode", "pode gerar", "gerar", "gera",
              "isso", "beleza", "blz", "manda", "certo", "ta certo", "esta certo", "fechado", "perfeito"}
@@ -530,6 +531,14 @@ class Nucleo:
             if prof.estado != "CONFIRMANDO":
                 return [Resposta("Não tem orçamento aberto agora. Para mudar um que já foi enviado, use /editar N.")]
             return [Resposta(textos.COMO_CORRIGIR)]
+        if cmd == "/editarweb":
+            if arg and not arg.isdigit():
+                return [Resposta("Use /editarweb N (veja os números em /orcamentos).")]
+            url = self._link_editor(s, prof, int(arg) if arg else None)
+            if url is None:
+                return [Resposta("Não achei esse orçamento. Use /editarweb N (veja os números em /orcamentos)."
+                                 if arg else "Não tem orçamento aberto agora. Use /editarweb N para um já enviado.")]
+            return [Resposta(textos.LINK_EDITOR.format(link=url))]
         if cmd == "/perfil":
             dados = "\n".join(f"• {nome}: {valor or '—'}" for nome, valor in self._campos_perfil(prof))
             return [Resposta("👤 Seus dados (aparecem no orçamento):\n\n" + dados + "\n\n" + textos.COMO_MUDAR_PERFIL,
@@ -1055,6 +1064,111 @@ class Nucleo:
         unidade = f" (por {item['unidade']})" if item.get("unidade") and item["unidade"] != "un" else ""
         return (f'❓ "{item["descricao"]}" ainda não está na sua tabela.\n'
                 f"Quanto você cobra{unidade}? Responda só o valor, ex: 80 ou 80,50")
+
+    # ------------------------------------------------------------------ editor pelo navegador
+    def _link_editor(self, s, prof, numero: int | None) -> str | None:
+        """Link do editor de um orçamento enviado (numero) ou do rascunho em conferência (numero=None)."""
+        if numero is None:
+            if prof.estado != "CONFIRMANDO" or not prof.rascunho or not prof.rascunho.get("itens"):
+                return None
+            return links.url(links.criar(s, prof, "editor"))
+        orc = self._buscar_orcamento(s, prof, str(numero))
+        return links.url(links.criar(s, prof, "editor", orc)) if orc else None
+
+    def link_editor(self, canal_id: str, numero: int | None) -> str | None:
+        with self.Sessao() as s:
+            prof = s.scalar(select(Profissional).where(Profissional.canal_id == canal_id))
+            url = self._link_editor(s, prof, numero) if prof else None
+            s.commit()
+            return url
+
+    def dados_editor(self, prof, orc) -> dict:
+        """Estado atual para preencher o formulário do editor (orc=None: o rascunho em conferência)."""
+        r = self._orc_para_rascunho(prof, orc) if orc is not None else copy.deepcopy(prof.rascunho or {})
+        return {"cliente": r.get("cliente") or {}, "itens": r.get("itens") or [], "observacoes": r.get("observacoes"),
+                "desconto": r.get("desconto")}
+
+    def validar_edicao(self, prof, dados: dict) -> tuple[list[str], dict | None]:
+        """Formulário do editor -> (erros, rascunho). Com qualquer erro, o rascunho é None e nada é salvo."""
+        erros, itens = [], []
+        tabela = self._tabela_precos(prof)
+        por_nome = {_norm(v["descricao"]): k for k, v in tabela.items()}
+        for n, item in enumerate(dados.get("itens") or [], 1):
+            descricao = " ".join(str(item.get("descricao") or "").split())
+            if not descricao:
+                continue  # linha em branco
+            if len(descricao) > 200:
+                erros.append(f"Descrição muito longa (máx. 200) no item {n}")
+            qtd = calculo._numero(item.get("quantidade"))
+            if qtd is None or qtd <= 0:
+                erros.append(f"Quantidade precisa ser maior que zero (item {n})")
+            preco = calculo.ler_valor(str(item.get("preco") or ""))
+            if preco is None and str(item.get("preco") or "").strip() not in ("0", "0,00"):
+                erros.append(f"Preço inválido no item {n}")
+                preco = None
+            preco = preco or 0
+            id_ = item.get("item_preco_id")
+            id_ = int(id_) if str(id_ or "").isdigit() and int(id_) in tabela else por_nome.get(_norm(descricao))
+            origem = "tabela" if id_ is not None and tabela[id_]["preco_centavos"] == preco else "informado"
+            itens.append({"descricao": descricao, "quantidade": qtd or 0, "unidade": (item.get("unidade") or "").strip()[:30] or None,
+                          "item_preco_id": id_, "preco_centavos": preco, "origem": origem})
+        if not itens and not erros:
+            erros.append("O orçamento precisa ter pelo menos um item")
+        desconto = None
+        d = dados.get("desconto") or {}
+        if d.get("tipo") in ("valor", "percentual") and str(d.get("valor") or "").strip():
+            if d["tipo"] == "valor":
+                v = calculo.ler_valor(str(d["valor"]))
+                if v is None:
+                    erros.append("Desconto inválido")
+                elif v > 0:
+                    desconto = {"tipo": "valor", "valor": v / 100}
+            else:
+                v = calculo._numero(str(d["valor"]).replace("%", ""))
+                if v is None or not 0 <= v < 100:
+                    erros.append("Desconto em % precisa ser entre 0 e 99")
+                elif v > 0:
+                    desconto = {"tipo": "percentual", "valor": v}
+        cli = dados.get("cliente") or {}
+        cliente = {k: (" ".join(str(cli.get(k) or "").split())[:limite] or None)
+                   for k, limite in (("nome", 120), ("endereco", 250), ("telefone", 40))}
+        obs = " ".join(str(dados.get("observacoes") or "").split())[:1000] or None
+        if erros:
+            return erros, None
+        return [], {"cliente": cliente, "itens": itens, "observacoes": obs, "desconto": desconto}
+
+    def salvar_edicao(self, prof_id: int, orc_id: int | None, dados: dict) -> tuple[list[str], list[Resposta], int | None]:
+        """Salva o que veio do editor: gera a revisão (ou o orçamento novo, se for o rascunho) e o PDF.
+        Devolve (erros, respostas para o chat, id do orçamento)."""
+        with self.Sessao() as s:
+            prof = s.get(Profissional, prof_id)
+            erros, rascunho = self.validar_edicao(prof, dados)
+            if erros:
+                return erros, [], None
+            guardado = None
+            if orc_id is not None:
+                orc = s.get(Orcamento, orc_id)
+                if orc is None or orc.profissional_id != prof.id:
+                    return ["Orçamento não encontrado"], [], None
+                rascunho.update(editando_id=orc.id, editando_numero=orc.numero)
+                if prof.rascunho:  # ele está no meio de outro orçamento no chat: não pode perder
+                    guardado = (prof.estado, copy.deepcopy(prof.rascunho))
+            else:
+                if prof.estado != "CONFIRMANDO" or not prof.rascunho:
+                    return ["Esse rascunho não está mais aberto no chat. Peça um link novo com /editarweb."], [], None
+                for chave in ("editando_id", "editando_numero"):
+                    if prof.rascunho.get(chave):
+                        rascunho[chave] = prof.rascunho[chave]
+            self._guardar_rascunho(prof, rascunho)
+            respostas = self._finalizar(s, prof)
+            numero = rascunho.get("editando_numero") or s.scalar(
+                select(func.max(Orcamento.numero)).where(Orcamento.profissional_id == prof.id))
+            novo = s.scalar(select(Orcamento).where(Orcamento.profissional_id == prof.id, Orcamento.numero == numero))
+            if guardado:
+                prof.estado = guardado[0]
+                self._guardar_rascunho(prof, guardado[1])
+            s.commit()
+            return [], [Resposta("🌐 Alteração feita pelo navegador.")] + respostas, novo.id
 
     # ------------------------------------------------------------------ chamadas do site
     def aprovado_pelo_cliente(self, s, prof, orc, nome: str) -> list[Resposta]:
