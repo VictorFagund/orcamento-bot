@@ -126,6 +126,20 @@ class Pagamento(Base):
     recibo_path: Mapped[str | None] = mapped_column(String(300))
 
 
+class Link(Base):
+    """Link secreto do site: orçamento para o cliente, editor do orçamento ou perfil do profissional."""
+
+    __tablename__ = "link"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    token: Mapped[str] = mapped_column(String(40), unique=True, index=True)
+    tipo: Mapped[str] = mapped_column(String(10))  # cliente | editor | perfil
+    profissional_id: Mapped[int] = mapped_column(ForeignKey("profissional.id"), index=True)
+    orcamento_id: Mapped[int | None] = mapped_column(ForeignKey("orcamento.id"))
+    expira_em: Mapped[datetime | None]  # None = não expira (link do cliente)
+    criado_em: Mapped[datetime] = mapped_column(default=datetime.now)
+
+
 def iniciar_banco(url: str):
     """Cria as tabelas (se não existirem) e devolve uma fábrica de sessões."""
     if url.startswith("sqlite:///"):

@@ -8,3 +8,7 @@ python-dotenv>=1.0
 tzdata>=2024.1; sys_platform == "win32"
 pytest>=8
 pymupdf>=1.24
+fastapi>=0.115
+uvicorn>=0.30
+jinja2>=3.1
+python-multipart>=0.0.9

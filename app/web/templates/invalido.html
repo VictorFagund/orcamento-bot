@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block titulo %}Link inválido{% endblock %}
+{% block corpo %}
+<div class="topo"><h1>Link inválido ou vencido</h1></div>
+<div class="conteudo">
+  <p>{{ mensagem or "Este link não existe ou já passou da validade." }}</p>
+  <p class="pequeno">Se você é o profissional, peça um link novo pelo chat do bot.</p>
+</div>
+{% endblock %}

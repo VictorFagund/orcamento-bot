@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>{% block titulo %}{{ produto }}{% endblock %}</title>
+<style>
+  :root { --cor: {{ cor | default('#1f4e79') }}; --clara: {{ cor_clara | default('#eef3f8') }};
+          --tinta: #202226; --suave: #60646c; --linha: #e2e4e8; --fundo: #f5f6f8; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fundo); color: var(--tinta);
+         font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .folha { max-width: 640px; margin: 0 auto; background: #fff; min-height: 100vh; padding-bottom: 32px; }
+  .topo { background: var(--cor); color: #fff; padding: 22px 20px 20px; }
+  .topo h1 { margin: 0; font-size: 1.35rem; line-height: 1.2; }
+  .topo p { margin: 4px 0 0; opacity: .85; font-size: .92rem; }
+  .conteudo { padding: 20px; }
+  .rotulo { font-size: .75rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--cor); margin: 18px 0 4px; }
+  .caixa { background: var(--clara); border-radius: 12px; padding: 14px 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+  td, th { padding: 10px 4px; border-bottom: 1px solid var(--linha); text-align: left; vertical-align: top; }
+  th { font-size: .75rem; color: var(--suave); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+  td.num, th.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .total { display: flex; justify-content: space-between; align-items: baseline; background: var(--cor); color: #fff;
+           border-radius: 12px; padding: 14px 16px; margin-top: 14px; font-size: 1.05rem; }
+  .total b { font-size: 1.5rem; }
+  .btn { display: block; width: 100%; border: 0; border-radius: 12px; padding: 16px; font: inherit; font-weight: 700;
+         font-size: 1.05rem; background: var(--cor); color: #fff; cursor: pointer; text-align: center; text-decoration: none; }
+  .btn.claro { background: var(--clara); color: var(--cor); }
+  .btn:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 3px solid var(--cor); outline-offset: 2px; }
+  input, textarea, select { width: 100%; font: inherit; padding: 12px; border: 1.5px solid var(--linha); border-radius: 10px; background: #fff; }
+  label { display: block; font-weight: 600; font-size: .9rem; margin: 14px 0 6px; }
+  .aviso { border-radius: 12px; padding: 14px 16px; margin: 16px 0; }
+  .aviso.ok { background: #e7f6ec; color: #165c32; }
+  .aviso.erro { background: #fdecec; color: #8a1c1c; }
+  .aviso.neutro { background: var(--fundo); color: var(--suave); }
+  .pix code { display: block; word-break: break-all; font-size: .8rem; background: #fff; padding: 10px; border-radius: 8px; margin-top: 8px; }
+  .rodape { text-align: center; color: var(--suave); font-size: .8rem; margin-top: 28px; }
+  .pequeno { color: var(--suave); font-size: .88rem; }
+</style>
+</head>
+<body>
+<div class="folha">
+{% block corpo %}{% endblock %}
+<p class="rodape">Orçamento feito com {{ produto }}</p>
+</div>
+</body>
+</html>

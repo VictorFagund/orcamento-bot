@@ -41,3 +41,10 @@ REATIVACOES_POR_DIA = int(os.getenv("REATIVACOES_POR_DIA", "3"))
 # Produto
 NOME_PRODUTO = os.getenv("NOME_PRODUTO", "Orçamento Rápido")
 VALIDADE_DIAS = int(os.getenv("VALIDADE_DIAS", "7"))
+
+# Site: links do orçamento para o cliente e do editor
+BASE_URL = os.getenv("BASE_URL", "http://localhost:8000").rstrip("/")
+# Chat do Telegram do dono do sistema, para avisos de erro
+ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID", "")
+# Beta gratuito: orçamentos novos por mês (plano "piloto" não tem limite)
+LIMITE_GRATIS = int(os.getenv("LIMITE_GRATIS", "15"))
