@@ -17,6 +17,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from . import calculo, catalogo, config, pix, textos
 from .db import Cliente, ItemPreco, Orcamento, OrcamentoItem, Pagamento, Profissional
 from .ia import IA, completar
+from . import links
 from . import pdf as pdf_mod
 from .pdf import gerar_pdf, gerar_recibo
 
@@ -495,6 +496,10 @@ class Nucleo:
                      Resposta(msg + "\n\n📲 Para mandar: segure o PDF acima, toque em Encaminhar (ou Compartilhar) "
                               "e escolha o cliente no WhatsApp.\n\nQuando ele responder, me conte pelos botões. "
                               "Se pedir mudança, encaminhe a mensagem dele aqui.", botoes=botoes_pos_envio(numero))]
+        link = links.url(links.criar(s, prof, "cliente", orc))
+        respostas += [Resposta("🔗 Mensagem pronta para o cliente (encaminhe junto com o PDF). Pelo link ele vê, "
+                               "aprova e paga pelo celular:"),
+                      Resposta(textos.LINK_CLIENTE.format(numero=numero, link=link, assinatura=self._assinatura(prof)))]
         if prof.pix_chave:
             respostas += [Resposta("💸 Pix copia e cola deste orçamento (pode encaminhar ao cliente junto com o PDF):"),
                           Resposta(self._pix_do_orcamento(prof, orc))]
@@ -1050,6 +1055,31 @@ class Nucleo:
         unidade = f" (por {item['unidade']})" if item.get("unidade") and item["unidade"] != "un" else ""
         return (f'❓ "{item["descricao"]}" ainda não está na sua tabela.\n'
                 f"Quanto você cobra{unidade}? Responda só o valor, ex: 80 ou 80,50")
+
+    # ------------------------------------------------------------------ chamadas do site
+    def aprovado_pelo_cliente(self, s, prof, orc, nome: str) -> list[Resposta]:
+        """O cliente aprovou pelo link: avisa o profissional, já com o botão de registrar o sinal."""
+        total = calculo.reais(orc.total_centavos)
+        sinal = calculo.valor_sinal(orc.total_centavos, prof.sinal_percentual)
+        if sinal < orc.total_centavos:
+            msg = textos.APROVADO_LINK.format(nome=nome, numero=orc.numero, total=total,
+                                              pix=f" Ele vai pagar o sinal de {calculo.reais(sinal)} pelo Pix.")
+            botao = ("💰 Já recebi o sinal", f"/pago {orc.numero} {calculo.valor_curto(sinal)}")
+        else:
+            msg = textos.APROVADO_LINK.format(nome=nome, numero=orc.numero, total=total,
+                                              pix=" Ele vai pagar pelo Pix.")
+            botao = ("💰 Já recebi", f"/pago {orc.numero}")
+        return [Resposta(msg, botoes=[[botao]])]
+
+    def pedido_do_cliente(self, s, prof, orc, nome: str, texto: str) -> list[Resposta]:
+        """O cliente pediu alteração pelo link. Se o profissional está livre, já abre a revisão; se está no meio de
+        outro orçamento, só avisa (não pode atropelar o rascunho dele)."""
+        aviso = Resposta(f"💬 {nome} pediu uma alteração no orçamento Nº {orc.numero:04d}:\n\"{texto[:500]}\"")
+        if prof.estado != "OCIOSO" or prof.rascunho:
+            aviso.botoes = [[("✏️ Abrir o orçamento para mudar", f"/editar {orc.numero}")]]
+            return [aviso]
+        instrucao = f"[Mensagem ENCAMINHADA do cliente {nome}] {texto[:500]}"
+        return [aviso] + self._iniciar_edicao(s, prof, orc, instrucao)
 
     def _pasta_previas(self, prof) -> str:
         return os.path.join(self.pasta, "previas", str(prof.id))

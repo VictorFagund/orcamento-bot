@@ -104,6 +104,10 @@ REATIVACAO_PRESTADOR = ("🔁 Faz {meses} meses que você fez \"{servico}\" para
 REATIVACAO_CLIENTE = ("Olá{saudacao}! Tudo bem? Já faz {meses} meses do serviço que fiz pra você ({servico}). "
                       "Se quiser, já consigo agendar {retorno}. É só me responder!\n{assinatura}")
 
+LINK_CLIENTE = ("Olá! Segue o orçamento Nº {numero:04d}. Por este link você vê tudo, aprova e paga pelo celular:\n"
+                "{link}\n{assinatura}")
+APROVADO_LINK = "✅ {nome} aprovou o orçamento Nº {numero:04d} ({total}) pelo link!{pix}"
+
 CADASTRO_PRONTO = ("✅ Cadastro pronto! Já pode mandar seu primeiro orçamento.\n\n"
                    "🎙️ Grave um áudio falando para quem é e o que vai fazer, por exemplo:\n"
                    "\"Orçamento pra Dona Maria, Rua das Flores 120. Trocar 6 tomadas e instalar 2 chuveiros.\"\n\n"

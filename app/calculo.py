@@ -134,6 +134,17 @@ def rotulo_desconto(rascunho: dict) -> str:
     return "Acréscimo" if valor_desconto(rascunho) < 0 else "Desconto"
 
 
+def valor_sinal(total_centavos: int, percentual: int | None) -> int:
+    """Sinal pedido no link do cliente. None = 50%; 0 = o total (sem sinal, paga tudo)."""
+    pct = 50 if percentual is None else percentual
+    return total_centavos if pct <= 0 or pct >= 100 else round(total_centavos * pct / 100)
+
+
+def valor_curto(centavos: int) -> str:
+    """24000 -> '240'; 24050 -> '240,50' (para comandos como /pago 3 240,50)."""
+    return str(centavos // 100) if centavos % 100 == 0 else f"{centavos / 100:.2f}".replace(".", ",")
+
+
 def reais(centavos: int) -> str:
     """12345 -> 'R$ 123,45' (formato brasileiro)."""
     s = f"{centavos / 100:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")

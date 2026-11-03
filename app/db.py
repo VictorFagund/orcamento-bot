@@ -26,6 +26,7 @@ class Profissional(Base):
     logo_path: Mapped[str | None] = mapped_column(String(300))
     modelo_pdf: Mapped[str | None] = mapped_column(String(20))  # visual do orçamento (app/pdf.py MODELOS)
     cor_pdf: Mapped[str | None] = mapped_column(String(20))
+    sinal_percentual: Mapped[int | None]  # % do total pedido como sinal no link do cliente (None = 50; 0 = total)
     # Em que ponto da conversa a pessoa está (cadastro, conferindo orçamento etc.)
     estado: Mapped[str] = mapped_column(String(40), default="CADASTRO_NOME")
     # Orçamento em montagem, antes de virar PDF
@@ -126,6 +127,20 @@ class Pagamento(Base):
     recibo_path: Mapped[str | None] = mapped_column(String(300))
 
 
+class Aceite(Base):
+    """Aprovação do cliente pelo link: quem, quando, de onde, e qual revisão do orçamento ele aprovou."""
+
+    __tablename__ = "aceite"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    orcamento_id: Mapped[int] = mapped_column(ForeignKey("orcamento.id"), index=True)
+    revisao: Mapped[int]
+    nome: Mapped[str] = mapped_column(String(120))
+    ip: Mapped[str | None] = mapped_column(String(60))
+    navegador: Mapped[str | None] = mapped_column(String(300))
+    aceito_em: Mapped[datetime] = mapped_column(default=datetime.now)
+
+
 class Link(Base):
     """Link secreto do site: orçamento para o cliente, editor do orçamento ou perfil do profissional."""
 
@@ -161,6 +176,7 @@ _NOVAS_COLUNAS = {
         "ultimo_resumo": "DATE",
         "modelo_pdf": "VARCHAR(20)",
         "cor_pdf": "VARCHAR(20)",
+        "sinal_percentual": "INTEGER",
     },
     "item_preco": {
         "recorrencia_meses": "INTEGER",

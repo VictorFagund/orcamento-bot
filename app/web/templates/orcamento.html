@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block titulo %}Orçamento Nº {{ numero }} · {{ prof.nome }}{% endblock %}
+{% block corpo %}
+<div class="topo">
+  <h1>{{ prof.nome }}</h1>
+  <p>{{ [prof.profissao, prof.telefone, prof.cidade] | select | join(" · ") }}</p>
+  <p style="margin-top:14px;opacity:1"><b>Orçamento Nº {{ numero }}</b>{% if revisao > 1 %} · rev. {{ revisao }}{% endif %} · {{ data }}</p>
+</div>
+<div class="conteudo">
+  {% if enviado %}<div class="aviso ok">Pronto! Seu pedido foi enviado para {{ prof.nome }}.</div>{% endif %}
+  {% if situacao == "aprovado" or aceite %}
+    <div class="aviso ok"><b>Orçamento aprovado{% if aceite %} por {{ aceite.nome }} em {{ aceite.aceito_em.strftime("%d/%m/%Y às %H:%M") }}{% endif %}.</b></div>
+  {% elif situacao == "recusado" %}<div class="aviso neutro">Este orçamento foi recusado.</div>
+  {% elif situacao == "pago" %}<div class="aviso ok">Este orçamento já está pago. Obrigado!</div>
+  {% elif situacao == "vencido" %}<div class="aviso neutro">Este orçamento venceu em {{ validade }}. Fale com {{ prof.nome }} para atualizar.</div>
+  {% endif %}
+
+  {% if cliente %}<div class="rotulo">Para</div>
+  <div><b>{{ cliente.nome }}</b>{% if cliente.endereco %}<br><span class="pequeno">{{ cliente.endereco }}</span>{% endif %}</div>{% endif %}
+
+  <div class="rotulo">Serviços</div>
+  <table>
+    <tr><th>Serviço</th><th class="num">Qtd</th><th class="num">Total</th></tr>
+    {% for i in itens %}<tr><td>{{ i.descricao }}<br><span class="pequeno">{{ i.unit }} cada</span></td><td class="num">{{ i.qtd }}</td><td class="num">{{ i.subtotal }}</td></tr>{% endfor %}
+  </table>
+  {% if desconto %}<p class="pequeno" style="text-align:right;margin:10px 0 0">Subtotal {{ subtotal }} · {% if acrescimo %}acréscimo +{% else %}desconto -{% endif %}{{ desconto }}</p>{% endif %}
+  <div class="total"><span>Total</span><b>{{ total }}</b></div>
+
+  {% if observacoes %}<div class="rotulo">Observações</div><p style="margin:0">{{ observacoes }}</p>{% endif %}
+  {% if pagamento %}<div class="rotulo">Forma de pagamento</div><p style="margin:0">{{ pagamento }}</p>{% endif %}
+  <div class="rotulo">Validade</div><p style="margin:0">Este orçamento vale até {{ validade }}.</p>
+
+  {% if situacao == "aberto" and not aceite %}
+  <form method="post" action="/o/{{ token }}/aprovar" style="margin-top:26px">
+    <label for="nome">Seu nome</label>
+    <input id="nome" name="nome" required maxlength="120" autocomplete="name" value="{{ cliente.nome if cliente else '' }}">
+    <p class="pequeno">Ao aprovar, fica registrado o seu nome, a data e a hora.</p>
+    <button class="btn" type="submit">Aprovar orçamento</button>
+  </form>
+  {% endif %}
+
+  {% if (situacao == "aprovado" or aceite) and pix_codigo %}
+  <div class="caixa pix" style="margin-top:22px">
+    <div class="rotulo" style="margin-top:0">{% if sinal_pct %}Sinal de {{ sinal_pct }}%: {{ sinal }}{% else %}Pagar com Pix: {{ sinal }}{% endif %}</div>
+    <img src="{{ pix_qr }}" alt="QR Code do Pix" width="200" height="200" style="display:block;margin:8px auto">
+    <p class="pequeno" style="margin:0">Abra o app do seu banco, escolha Pix e aponte a câmera, ou copie o código:</p>
+    <code id="pix">{{ pix_codigo }}</code>
+    <button class="btn claro" type="button" style="margin-top:10px" onclick="navigator.clipboard.writeText(document.getElementById('pix').textContent).then(()=>this.textContent='Código copiado ✓')">Copiar código Pix</button>
+  </div>
+  {% endif %}
+
+  {% if situacao in ("aberto", "aprovado") %}
+  <details style="margin-top:22px">
+    <summary class="btn claro" style="list-style:none">Pedir alteração</summary>
+    <form method="post" action="/o/{{ token }}/alteracao">
+      <label for="texto">O que você quer mudar?</label>
+      <textarea id="texto" name="texto" rows="3" maxlength="1000" required placeholder="Ex: dá pra fazer sem o chuveiro?"></textarea>
+      <input type="hidden" name="nome" value="{{ cliente.nome if cliente else '' }}">
+      <button class="btn" type="submit" style="margin-top:10px">Enviar para {{ prof.nome }}</button>
+    </form>
+  </details>
+  {% endif %}
+</div>
+{% endblock %}
