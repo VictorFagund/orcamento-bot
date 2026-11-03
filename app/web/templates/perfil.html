@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block titulo %}Meus dados{% endblock %}
+{% block corpo %}
+<style>
+  .item { border: 1.5px solid var(--linha); border-radius: 12px; padding: 12px; margin-bottom: 10px; }
+  .linha { display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: 8px; }
+  .linha label, .item label { margin-top: 8px; }
+  .duas { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .check { display: flex; gap: 8px; align-items: center; font-weight: 500; margin-top: 8px; }
+  .check input { width: auto; }
+</style>
+<div class="topo"><h1>Meus dados</h1><p>O que aparece nos seus orçamentos.</p></div>
+<form class="conteudo" method="post">
+  {% if salvo %}<div class="aviso ok">Salvo! Vale a partir do próximo orçamento.</div>{% endif %}
+  {% if erros %}<div class="aviso erro"><b>Corrija antes de salvar:</b><ul style="margin:6px 0 0;padding-left:18px">{% for e in erros %}<li>{{ e }}</li>{% endfor %}</ul></div>{% endif %}
+
+  <label for="nome">Nome ou empresa</label><input id="nome" name="nome" maxlength="120" required value="{{ form.nome or '' }}">
+  <label for="prof">Profissão</label><input id="prof" name="profissao" maxlength="80" value="{{ form.profissao or '' }}">
+  <div class="duas">
+    <div><label for="tel">Telefone</label><input id="tel" name="telefone" maxlength="40" inputmode="tel" value="{{ form.telefone or '' }}"></div>
+    <div><label for="cid">Cidade</label><input id="cid" name="cidade" maxlength="80" value="{{ form.cidade or '' }}"></div>
+  </div>
+  <label for="pag">Forma de pagamento</label><input id="pag" name="pagamento" maxlength="200" value="{{ form.pagamento or '' }}">
+  <div class="duas">
+    <div><label for="pix">Chave Pix</label><input id="pix" name="pix" maxlength="80" value="{{ form.pix or '' }}"></div>
+    <div><label for="sinal">Sinal pedido (%)</label><input id="sinal" name="sinal" inputmode="numeric" placeholder="50" value="{{ form.sinal or '' }}"></div>
+  </div>
+  <p class="pequeno">Sinal: quanto o cliente paga no Pix ao aprovar pelo link. 0 = o valor todo.</p>
+
+  <div class="rotulo" style="margin-top:22px">Visual do PDF</div>
+  <div class="duas">
+    <select name="modelo" aria-label="Modelo">{% for k, n in modelos %}<option value="{{ k }}"{% if form.modelo == k %} selected{% endif %}>{{ n }}</option>{% endfor %}</select>
+    <select name="cor" aria-label="Cor">{% for k, n in cores %}<option value="{{ k }}"{% if form.cor == k %} selected{% endif %}>{{ n }}</option>{% endfor %}</select>
+  </div>
+
+  <label for="cond">Condições em todo orçamento (uma por linha, assim: Garantia: 90 dias)</label>
+  <textarea id="cond" name="condicoes" rows="4" maxlength="2000">{{ form.condicoes }}</textarea>
+
+  <div class="rotulo" style="margin-top:22px">Tabela de preços</div>
+  <div id="tabela">
+  {% for i in form.tabela %}
+    <div class="item">
+      <input type="hidden" name="item_id" value="{{ i.id }}">
+      <label>Serviço ou peça</label><input name="item_descricao" maxlength="200" value="{{ i.descricao }}">
+      <div class="linha">
+        <div><label>Preço (R$)</label><input name="item_preco" inputmode="decimal" value="{{ i.preco }}"></div>
+        <div><label>Tipo</label><select name="item_tipo"><option value="servico"{% if i.tipo != 'peca' %} selected{% endif %}>Mão de obra</option><option value="peca"{% if i.tipo == 'peca' %} selected{% endif %}>Peça/material</option></select></div>
+        <div><label>Unidade</label><input name="item_unidade" maxlength="30" placeholder="un" value="{{ i.unidade }}"></div>
+      </div>
+      {% if i.id %}<label class="check"><input type="checkbox" name="item_remover" value="{{ i.id }}"> Remover da tabela</label>{% endif %}
+    </div>
+  {% endfor %}
+  </div>
+  <template id="novo">
+    <div class="item">
+      <input type="hidden" name="item_id" value="">
+      <label>Serviço ou peça</label><input name="item_descricao" maxlength="200">
+      <div class="linha">
+        <div><label>Preço (R$)</label><input name="item_preco" inputmode="decimal"></div>
+        <div><label>Tipo</label><select name="item_tipo"><option value="servico" selected>Mão de obra</option><option value="peca">Peça/material</option></select></div>
+        <div><label>Unidade</label><input name="item_unidade" maxlength="30" placeholder="un"></div>
+      </div>
+    </div>
+  </template>
+  <button type="button" class="btn claro" onclick="document.getElementById('tabela').append(document.getElementById('novo').content.cloneNode(true))">+ Adicionar à tabela</button>
+
+  <button class="btn" type="submit" style="margin-top:24px">Salvar</button>
+</form>
+{% endblock %}

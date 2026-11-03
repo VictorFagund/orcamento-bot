@@ -112,6 +112,8 @@ COMO_CONDICAO = ("Para incluir ou mudar: /condicao Garantia: 90 dias na mão de 
                  "Falou uma condição no áudio (\"garantia de 6 meses nesse\")? Ela vale só para aquele orçamento.")
 LINK_EDITOR = ("🌐 Abra para editar tudo no navegador (vale por 7 dias, não compartilhe):\n{link}\n\n"
                "Ao salvar, eu gero o PDF novo e mando aqui.")
+LINK_PERFIL = ("🌐 Abra para editar seus dados, condições, visual do PDF e a tabela de preços "
+               "(vale por 7 dias, não compartilhe):\n{link}")
 APROVADO_LINK = "✅ {nome} aprovou o orçamento Nº {numero:04d} ({total}) pelo link!{pix}"
 
 CADASTRO_PRONTO = ("✅ Cadastro pronto! Já pode mandar seu primeiro orçamento.\n\n"

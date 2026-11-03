@@ -546,7 +546,10 @@ class Nucleo:
         if cmd == "/perfil":
             dados = "\n".join(f"• {nome}: {valor or '—'}" for nome, valor in self._campos_perfil(prof))
             return [Resposta("👤 Seus dados (aparecem no orçamento):\n\n" + dados + "\n\n" + textos.COMO_MUDAR_PERFIL,
-                             botoes=[[("🎨 Mudar o visual do PDF", "/modelo")]])]
+                             botoes=[[("🌐 Editar tudo no navegador", "/perfilweb")],
+                                     [("🎨 Mudar o visual do PDF", "/modelo")]])]
+        if cmd == "/perfilweb":
+            return [Resposta(textos.LINK_PERFIL.format(link=links.url(links.criar(s, prof, "perfil"))))]
         if cmd in CAMPOS_PERFIL:
             campo, rotulo, limite = CAMPOS_PERFIL[cmd]
             valor = texto.split(None, 1)[1].strip() if len(partes) > 1 else ""
@@ -1197,6 +1200,72 @@ class Nucleo:
                 self._guardar_rascunho(prof, guardado[1])
             s.commit()
             return [], [Resposta("🌐 Alteração feita pelo navegador.")] + respostas, novo.id
+
+    def salvar_perfil(self, prof_id: int, dados: dict) -> list[str]:
+        """Perfil e tabela vindos do navegador. Devolve os erros; vazio = salvo. Com erro, nada é gravado."""
+        with self.Sessao() as s:
+            prof = s.get(Profissional, prof_id)
+            erros = []
+            limpo = lambda v, n: " ".join(str(v or "").split())[:n] or None
+            nome = limpo(dados.get("nome"), 120)
+            if not nome:
+                erros.append("O nome não pode ficar vazio")
+            pix_txt = (dados.get("pix") or "").strip()
+            pix_chave = None
+            if pix_txt and pix_txt == prof.pix_chave:
+                pix_chave = prof.pix_chave  # a chave salva (já normalizada) voltou sem mudança
+            elif pix_txt:
+                achou = pix.normalizar_chave(re.sub(r"(?i)^\s*(cpf|cnpj|celular|telefone|e-?mail)[:\s]*", "", pix_txt))
+                if achou is None:
+                    erros.append("Chave Pix não reconhecida")
+                elif achou[1] == "ambigua":
+                    erros.append("Esses 11 dígitos podem ser CPF ou celular: escreva como 000.000.000-00 ou (46) 99999-0000")
+                else:
+                    pix_chave = achou[0]
+            sinal_txt = str(dados.get("sinal") if dados.get("sinal") is not None else "").strip().replace("%", "")
+            sinal = None
+            if sinal_txt:
+                sinal = int(sinal_txt) if sinal_txt.isdigit() else -1
+                if not 0 <= sinal <= 100:
+                    erros.append("O sinal precisa ser de 0 a 100%")
+            modelo = dados.get("modelo") if dados.get("modelo") in pdf_mod.MODELOS else prof.modelo_pdf
+            cor = dados.get("cor") if dados.get("cor") in pdf_mod.CORES else prof.cor_pdf
+            tabela, atuais = [], {i.id: i for i in prof.itens_preco}
+            for linha in dados.get("tabela") or []:
+                descricao = limpo(linha.get("descricao"), 200)
+                id_ = int(linha["id"]) if str(linha.get("id") or "").isdigit() else None
+                if id_ is not None and id_ not in atuais:
+                    continue  # id de outro profissional ou adulterado: ignora
+                if linha.get("remover") or not descricao:
+                    tabela.append((id_, None))
+                    continue
+                preco = calculo.ler_valor(str(linha.get("preco") or ""))
+                if preco is None:
+                    erros.append(f"Preço inválido em \"{descricao}\"")
+                    continue
+                tipo = linha.get("tipo") if linha.get("tipo") in calculo.TIPOS else "servico"
+                tabela.append((id_, {"descricao": descricao, "unidade": limpo(linha.get("unidade"), 30),
+                                     "tipo": tipo, "preco_centavos": preco}))
+            if erros:
+                return erros
+            prof.nome, prof.profissao = nome, limpo(dados.get("profissao"), 80)
+            prof.telefone, prof.cidade = limpo(dados.get("telefone"), 40), limpo(dados.get("cidade"), 80)
+            prof.pagamento_padrao, prof.pix_chave = limpo(dados.get("pagamento"), 200), pix_chave
+            prof.sinal_percentual, prof.modelo_pdf, prof.cor_pdf = sinal, modelo, cor
+            prof.condicoes_padrao = calculo.limpar_condicoes(dados.get("condicoes"))
+            for id_, valores in tabela:
+                if valores is None:
+                    if id_ is not None:
+                        prof.itens_preco.remove(atuais[id_])
+                elif id_ is None:
+                    novo = self._novo_item(prof, valores["descricao"], valores["unidade"], valores["preco_centavos"], [])
+                    novo.tipo = valores["tipo"]
+                else:
+                    item = atuais[id_]
+                    item.descricao, item.unidade = valores["descricao"], valores["unidade"]
+                    item.tipo, item.preco_centavos = valores["tipo"], valores["preco_centavos"]
+            s.commit()
+            return []
 
     # ------------------------------------------------------------------ chamadas do site
     def aprovado_pelo_cliente(self, s, prof, orc, nome: str) -> list[Resposta]:
