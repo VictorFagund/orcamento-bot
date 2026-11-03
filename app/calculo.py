@@ -2,6 +2,20 @@
 import re
 
 
+TIPOS = ("servico", "peca")
+ROTULO_TIPO = {"servico": "Mão de obra", "peca": "Peças e materiais"}
+
+
+def subtotais_por_tipo(rascunho: dict) -> dict[str, int]:
+    """{"servico": centavos, "peca": centavos}, só com os tipos que aparecem, na ordem mão de obra -> peças."""
+    soma: dict[str, int] = {}
+    for i in rascunho["itens"]:
+        if i["preco_centavos"] is not None:
+            t = i.get("tipo") or "servico"
+            soma[t] = soma.get(t, 0) + subtotal(i)
+    return {t: soma[t] for t in TIPOS if t in soma}
+
+
 def montar_rascunho(dados_ia: dict, tabela: dict[int, dict]) -> dict:
     """Converte a saída da IA num rascunho com preços.
 
@@ -25,8 +39,11 @@ def montar_rascunho(dados_ia: dict, tabela: dict[int, dict]) -> dict:
         else:
             preco, origem = None, None
 
+        tipo = item.get("tipo") if item.get("tipo") in TIPOS else (
+            tabela[item_id].get("tipo") if item_id is not None else None) or "servico"
         itens.append(
             {
+                "tipo": tipo,
                 "descricao": str(item.get("descricao") or "").strip() or "Item",
                 "quantidade": qtd,
                 "unidade": item.get("unidade") or (tabela[item_id]["unidade"] if item_id else None),

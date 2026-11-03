@@ -33,7 +33,7 @@ def situacao(orc, hoje: date | None = None) -> str:
 
 
 def orcamento(prof, orc) -> dict:
-    itens = [{"descricao": i.descricao,
+    itens = [{"descricao": i.descricao, "tipo": i.tipo or "servico",
               "qtd": qtd_fmt(i.quantidade) + (f" {i.unidade}" if i.unidade and i.unidade != "un" else ""),
               "unit": reais(i.preco_unit_centavos), "subtotal": reais(i.subtotal_centavos)} for i in orc.itens]
     desconto = orc.desconto_centavos or 0
@@ -46,6 +46,10 @@ def orcamento(prof, orc) -> dict:
         "prof": prof, "numero": f"{orc.numero:04d}", "revisao": orc.revisao or 1,
         "data": f"{orc.criado_em:%d/%m/%Y}", "validade": f"{orc.validade:%d/%m/%Y}",
         "cliente": orc.cliente, "itens": itens,
+        "grupos": [(rotulo, [i for i in itens if i["tipo"] == t],
+                    reais(sum(x.subtotal_centavos for x in orc.itens if (x.tipo or "servico") == t)))
+                   for t, rotulo in (("servico", "Mão de obra"), ("peca", "Peças e materiais"))
+                   if any(i["tipo"] == t for i in itens)],
         "subtotal": reais(orc.total_centavos + desconto) if desconto else None,
         "desconto": reais(abs(desconto)) if desconto else None, "acrescimo": desconto < 0,
         "total": reais(orc.total_centavos), "pagamento": orc.pagamento, "observacoes": orc.observacoes,

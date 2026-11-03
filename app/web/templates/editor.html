@@ -23,6 +23,7 @@
     <div class="item">
       <input type="hidden" name="item_preco_id" value="{{ i.item_preco_id }}">
       <label>Descrição</label><input name="descricao" maxlength="300" value="{{ i.descricao }}">
+      <div><label>Tipo</label><select name="tipo"><option value="servico"{% if i.tipo != 'peca' %} selected{% endif %}>Mão de obra</option><option value="peca"{% if i.tipo == 'peca' %} selected{% endif %}>Peça/material</option></select></div>
       <div class="linha">
         <div><label>Qtd</label><input name="quantidade" inputmode="decimal" value="{{ i.quantidade }}"></div>
         <div><label>Unidade</label><input name="unidade" maxlength="30" placeholder="un" value="{{ i.unidade }}"></div>
@@ -36,6 +37,7 @@
     <div class="item">
       <input type="hidden" name="item_preco_id" value="">
       <label>Descrição</label><input name="descricao" maxlength="300">
+      <div><label>Tipo</label><select name="tipo"><option value="servico" selected>Mão de obra</option><option value="peca">Peça/material</option></select></div>
       <div class="linha">
         <div><label>Qtd</label><input name="quantidade" inputmode="decimal" value="1"></div>
         <div><label>Unidade</label><input name="unidade" maxlength="30" placeholder="un"></div>

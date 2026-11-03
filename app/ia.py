@@ -37,13 +37,14 @@ SCHEMA = {
             "items": {
                 "type": "object",
                 "additionalProperties": False,
-                "required": ["descricao", "quantidade", "unidade", "item_preco_id", "preco_informado"],
+                "required": ["descricao", "quantidade", "unidade", "item_preco_id", "preco_informado", "tipo"],
                 "properties": {
                     "descricao": {"type": "string"},
                     "quantidade": {"type": "number"},
                     "unidade": {"type": ["string", "null"]},
                     "item_preco_id": {"type": ["integer", "null"]},
                     "preco_informado": _NUM,
+                    "tipo": {"type": "string", "enum": ["servico", "peca"]},
                 },
             },
         },
@@ -116,6 +117,8 @@ Para "orcamento":
 - Se houver um ORÇAMENTO ATUAL, devolva o estado COMPLETO já corrigido: todos os itens (mantenha os que não
   mudaram, inclusive preco_informado anteriores), cliente, observacoes e o desconto atual (a menos que a
   mensagem mude ou remova o desconto).
+- "tipo" de cada item: "peca" quando o item é a coisa comprada (peça ou material: "pastilha", "disjuntor 20A",
+  "2 latas de tinta", "cabo 2,5mm"); "servico" quando é o trabalho ("troca de pastilha", "instalação", "mão de obra").
 - "observacoes": detalhes que não são itens nem condições (ou null).
 - "condicoes": condições ditas para ESTE orçamento, como garantia, prazo de execução, material incluso ou não,
   visita técnica. Formato {"rotulo": "Garantia", "texto": "6 meses"}, {"rotulo": "Prazo", "texto": "3 dias úteis"}.
@@ -219,7 +222,8 @@ def completar(dados: dict) -> dict:
     dados["cliente"] = {k: cli.get(k) for k in ("nome", "endereco", "telefone")}
     dados["itens"] = [{"descricao": str(i.get("descricao") or "Item"), "quantidade": i.get("quantidade"),  # 0 continua 0 (item removido)
                        "unidade": i.get("unidade"), "item_preco_id": i.get("item_preco_id"),
-                       "preco_informado": i.get("preco_informado")} for i in dados["itens"] or []]
+                       "preco_informado": i.get("preco_informado"),
+                       "tipo": i.get("tipo") if i.get("tipo") in ("servico", "peca") else None} for i in dados["itens"] or []]
     dados["precos"] = [p for p in dados["precos"] or [] if isinstance(p.get("preco"), (int, float))]
     return dados
 
@@ -236,6 +240,7 @@ def rascunho_para_ia(rascunho: dict) -> dict:
                 "unidade": i.get("unidade"),
                 "item_preco_id": i.get("item_preco_id"),
                 "preco_informado": i["preco_centavos"] / 100 if i.get("origem") == "informado" else None,
+                "tipo": i.get("tipo") or "servico",
             }
             for i in rascunho.get("itens", [])
         ],

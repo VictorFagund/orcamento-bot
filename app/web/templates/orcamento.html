@@ -18,11 +18,14 @@
   {% if cliente %}<div class="rotulo">Para</div>
   <div><b>{{ cliente.nome }}</b>{% if cliente.endereco %}<br><span class="pequeno">{{ cliente.endereco }}</span>{% endif %}</div>{% endif %}
 
-  <div class="rotulo">Serviços</div>
+  {% for rotulo, lista, subtotal_grupo in grupos %}
+  <div class="rotulo">{% if grupos|length > 1 %}{{ rotulo }}{% else %}Serviços{% endif %}</div>
   <table>
-    <tr><th>Serviço</th><th class="num">Qtd</th><th class="num">Total</th></tr>
-    {% for i in itens %}<tr><td>{{ i.descricao }}<br><span class="pequeno">{{ i.unit }} cada</span></td><td class="num">{{ i.qtd }}</td><td class="num">{{ i.subtotal }}</td></tr>{% endfor %}
+    <tr><th>{% if rotulo == "Mão de obra" %}Serviço{% else %}Peça / material{% endif %}</th><th class="num">Qtd</th><th class="num">Total</th></tr>
+    {% for i in lista %}<tr><td>{{ i.descricao }}<br><span class="pequeno">{{ i.unit }} cada</span></td><td class="num">{{ i.qtd }}</td><td class="num">{{ i.subtotal }}</td></tr>{% endfor %}
   </table>
+  {% if grupos|length > 1 %}<p class="pequeno" style="text-align:right;margin:6px 0 0">Subtotal {{ rotulo|lower }}: {{ subtotal_grupo }}</p>{% endif %}
+  {% endfor %}
   {% if desconto %}<p class="pequeno" style="text-align:right;margin:10px 0 0">Subtotal {{ subtotal }} · {% if acrescimo %}acréscimo +{% else %}desconto -{% endif %}{{ desconto }}</p>{% endif %}
   <div class="total"><span>Total</span><b>{{ total }}</b></div>
 

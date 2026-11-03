@@ -50,6 +50,7 @@ class ItemPreco(Base):
     preco_centavos: Mapped[int]
     # Outras formas de falar o mesmo item: ["ponto de tomada", "trocar tomada"]
     sinonimos: Mapped[list] = mapped_column(JSON, default=list)
+    tipo: Mapped[str | None] = mapped_column(String(10))  # servico (mão de obra) | peca (peça/material); None = servico
     # Serviço que se repete (ex: limpeza de ar a cada 6 meses): base para reativar clientes antigos
     recorrencia_meses: Mapped[int | None]
     recorrencia_texto: Mapped[str | None] = mapped_column(String(120))  # ex: "a limpeza do ar-condicionado"
@@ -114,6 +115,7 @@ class OrcamentoItem(Base):
     descricao: Mapped[str] = mapped_column(String(200))
     quantidade: Mapped[float]
     unidade: Mapped[str | None] = mapped_column(String(30))
+    tipo: Mapped[str | None] = mapped_column(String(10))  # servico | peca; None = servico
     preco_unit_centavos: Mapped[int]
     subtotal_centavos: Mapped[int]
 
@@ -185,6 +187,7 @@ _NOVAS_COLUNAS = {
     "item_preco": {
         "recorrencia_meses": "INTEGER",
         "recorrencia_texto": "VARCHAR(120)",
+        "tipo": "VARCHAR(10)",
     },
     "orcamento": {
         "enviado_em": "DATETIME",
@@ -196,6 +199,9 @@ _NOVAS_COLUNAS = {
         "desconto_percentual": "FLOAT",
         "revisao": "INTEGER NOT NULL DEFAULT 1",
         "condicoes": "JSON",
+    },
+    "orcamento_item": {
+        "tipo": "VARCHAR(10)",
     },
 }
 

@@ -26,7 +26,8 @@ def _formulario(dados: dict) -> dict:
     return {"cliente": dados.get("cliente") or {}, "observacoes": dados.get("observacoes") or "",
             "condicoes": "\n".join(f"{c['rotulo']}: {c['texto']}" for c in dados.get("condicoes") or []),
             "itens": [{"descricao": i["descricao"], "quantidade": qtd_fmt(i["quantidade"]), "unidade": i.get("unidade") or "",
-                       "preco": valor_curto(i["preco_centavos"] or 0), "item_preco_id": i.get("item_preco_id") or ""}
+                       "preco": valor_curto(i["preco_centavos"] or 0), "item_preco_id": i.get("item_preco_id") or "",
+                       "tipo": i.get("tipo") or "servico"}
                       for i in dados.get("itens") or []],
             "desconto_tipo": d.get("tipo") if d.get("tipo") in ("valor", "percentual") else "",
             "desconto_valor": (qtd_fmt(d["valor"]) if d.get("tipo") == "percentual" else
@@ -47,7 +48,7 @@ def ver(request: Request, token: str):
 @rotas.post("/e/{token}")
 async def salvar(request: Request, token: str):
     f = await request.form()
-    campos = ("descricao", "quantidade", "unidade", "preco", "item_preco_id")
+    campos = ("descricao", "quantidade", "unidade", "preco", "item_preco_id", "tipo")
     colunas = {c: f.getlist(c) for c in campos}
     itens = [{c: (colunas[c][i] if i < len(colunas[c]) else "") for c in campos} for i in range(len(colunas["descricao"]))]
     dados = {"cliente": {"nome": f.get("cliente_nome"), "endereco": f.get("cliente_endereco"),

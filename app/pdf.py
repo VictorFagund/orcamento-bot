@@ -240,18 +240,40 @@ def _tabela(pdf, orc, cor, modelo):
         pdf.set_draw_color(225, 227, 230)
         pdf.set_fill_color(255, 255, 255)  # a tabela herdaria a cor de preenchimento do bloco anterior
     pdf.set_line_width(0.25)
-    with pdf.table(col_widths=(92, 22, 33, 33), text_align=("LEFT", "CENTER", "RIGHT", "RIGHT"),
-                   line_height=7.5, padding=(2, 2.5), **estilo) as tabela:
-        linha = tabela.row()
-        for titulo in ("Serviço", "Qtd", "Valor unit.", "Total"):
-            linha.cell(_t(titulo.upper() if modelo != "classico" else titulo))
-        for item in orc.itens:
+    grupos: dict[str, list] = {}
+    for item in orc.itens:
+        grupos.setdefault(getattr(item, "tipo", None) or "servico", []).append(item)
+    misto = len(grupos) > 1
+    for tipo in ("servico", "peca"):
+        if tipo not in grupos:
+            continue
+        if misto:
+            pdf.set_font("HankenM", "", 10.5)
+            pdf.set_text_color(*cor)
+            pdf.cell(0, 7, _t(("Mão de obra" if tipo == "servico" else "Peças e materiais").upper()),
+                     new_x="LMARGIN", new_y="NEXT")
+            pdf.set_font("Hanken", "", 10)
+            pdf.set_text_color(*TEXTO)
+        titulo_1 = "Serviço" if tipo == "servico" else "Peça / material"
+        with pdf.table(col_widths=(92, 22, 33, 33), text_align=("LEFT", "CENTER", "RIGHT", "RIGHT"),
+                       line_height=7.5, padding=(2, 2.5), **estilo) as tabela:
             linha = tabela.row()
-            qtd = qtd_fmt(item.quantidade) + (f" {item.unidade}" if item.unidade and item.unidade != "un" else "")
-            linha.cell(_t(item.descricao))
-            linha.cell(_t(qtd))
-            linha.cell(_t(reais(item.preco_unit_centavos)))
-            linha.cell(_t(reais(item.subtotal_centavos)))
+            for titulo in (titulo_1, "Qtd", "Valor unit.", "Total"):
+                linha.cell(_t(titulo.upper() if modelo != "classico" else titulo))
+            for item in grupos[tipo]:
+                linha = tabela.row()
+                qtd = qtd_fmt(item.quantidade) + (f" {item.unidade}" if item.unidade and item.unidade != "un" else "")
+                linha.cell(_t(item.descricao))
+                linha.cell(_t(qtd))
+                linha.cell(_t(reais(item.preco_unit_centavos)))
+                linha.cell(_t(reais(item.subtotal_centavos)))
+        if misto:
+            pdf.set_font("Hanken", "", 9.5)
+            pdf.set_text_color(*SUAVE)
+            pdf.cell(0, 7, _t(f"Subtotal {'mão de obra' if tipo == 'servico' else 'peças e materiais'}: "
+                              f"{reais(sum(i.subtotal_centavos for i in grupos[tipo]))}"), align="R",
+                     new_x="LMARGIN", new_y="NEXT")
+            pdf.ln(2)
 
 
 def _totais(pdf, orc, cor, modelo):

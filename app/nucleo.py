@@ -432,6 +432,7 @@ class Nucleo:
         for i in orc.itens:
             da_tabela = i.item_preco_id in tabela and tabela[i.item_preco_id]["preco_centavos"] == i.preco_unit_centavos
             itens.append({"descricao": i.descricao, "quantidade": i.quantidade, "unidade": i.unidade,
+                          "tipo": i.tipo or "servico",
                           "item_preco_id": i.item_preco_id if i.item_preco_id in tabela else None,
                           "preco_centavos": i.preco_unit_centavos, "origem": "tabela" if da_tabela else "informado"})
         if orc.desconto_percentual:
@@ -483,6 +484,7 @@ class Nucleo:
         numero = orc.numero
         for i in r["itens"]:
             orc.itens.append(OrcamentoItem(item_preco_id=i["item_preco_id"], descricao=i["descricao"],
+                                           tipo=i.get("tipo") or "servico",
                                            quantidade=i["quantidade"], unidade=i.get("unidade"),
                                            preco_unit_centavos=i["preco_centavos"],
                                            subtotal_centavos=calculo.subtotal(i)))
@@ -1025,8 +1027,8 @@ class Nucleo:
                 for i in prof.itens_preco]
 
     def _tabela_precos(self, prof) -> dict[int, dict]:
-        return {i.id: {"descricao": i.descricao, "unidade": i.unidade, "preco_centavos": i.preco_centavos}
-                for i in prof.itens_preco}
+        return {i.id: {"descricao": i.descricao, "unidade": i.unidade, "preco_centavos": i.preco_centavos,
+                       "tipo": i.tipo or "servico"} for i in prof.itens_preco}
 
     def _reaplicar_precos(self, prof, rascunho):
         r = copy.deepcopy(rascunho)
@@ -1133,7 +1135,9 @@ class Nucleo:
             id_ = item.get("item_preco_id")
             id_ = int(id_) if str(id_ or "").isdigit() and int(id_) in tabela else por_nome.get(_norm(descricao))
             origem = "tabela" if id_ is not None and tabela[id_]["preco_centavos"] == preco else "informado"
-            itens.append({"descricao": descricao, "quantidade": qtd or 0, "unidade": (item.get("unidade") or "").strip()[:30] or None,
+            tipo = item.get("tipo") if item.get("tipo") in calculo.TIPOS else (
+                tabela[id_]["tipo"] if id_ is not None else "servico")
+            itens.append({"descricao": descricao, "quantidade": qtd or 0, "tipo": tipo, "unidade": (item.get("unidade") or "").strip()[:30] or None,
                           "item_preco_id": id_, "preco_centavos": preco, "origem": origem})
         if not itens and not erros:
             erros.append("O orçamento precisa ter pelo menos um item")
@@ -1256,7 +1260,16 @@ class Nucleo:
         para = "\n".join(filter(None, [f"👤 {cli['nome']}" if cli.get("nome") else None,
                                         f"📍 {cli['endereco']}" if cli.get("endereco") else None]))
         linhas = []
-        for i in r["itens"]:
+        blocos = calculo.subtotais_por_tipo(r)
+        misto = len(blocos) > 1
+        itens = sorted(r["itens"], key=lambda i: calculo.TIPOS.index(i.get("tipo") or "servico")) if misto else r["itens"]
+        tipo_atual = None
+        for i in itens:
+            if misto and (i.get("tipo") or "servico") != tipo_atual:
+                tipo_atual = i.get("tipo") or "servico"
+                icone = "🔧" if tipo_atual == "servico" else "📦"
+                linhas.append(("\n" if linhas else "") + f"{icone} {calculo.ROTULO_TIPO[tipo_atual]} "
+                              f"({calculo.reais(blocos[tipo_atual])})")
             un = f" {i['unidade']}" if i.get("unidade") and i["unidade"] != "un" else ""
             ajustado = " ✏️" if i.get("origem") == "informado" else ""
             qtd = calculo.qtd_fmt(i["quantidade"])
