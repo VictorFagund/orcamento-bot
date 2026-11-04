@@ -59,7 +59,7 @@ def ambiente(tmp_path):
         ia.respostas["tabela"] = vazio(intencao="tabela_precos", precos=[
             {"descricao": "Troca de tomada", "unidade": "un", "preco": 40, "sinonimos": []},
             {"descricao": "Instalação de chuveiro", "unidade": "un", "preco": 120, "sinonimos": []}])
-        for m in ["oi", "Prof", "Eletricista", "pular", "pular", "pular", "pular", "pular", "tabela"]:
+        for m in ["oi", "Prof", "Eletricista", "pular", "pular", "pular", "pular", "pular", "tabela", "aceito"]:
             enviar(m, canal=canal)
         with Sessao() as s:
             return {i.descricao: i.id for i in s.query(ItemPreco).all() if i.profissional.canal_id == canal}

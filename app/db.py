@@ -28,6 +28,7 @@ class Profissional(Base):
     cor_pdf: Mapped[str | None] = mapped_column(String(20))
     # Condições que entram em todo orçamento: [{"rotulo": "Garantia", "texto": "90 dias"}, ...]
     condicoes_padrao: Mapped[list | None] = mapped_column(JSON)
+    termos_aceitos_em: Mapped[datetime | None]
     sinal_percentual: Mapped[int | None]  # % do total pedido como sinal no link do cliente (None = 50; 0 = total)
     # Em que ponto da conversa a pessoa está (cadastro, conferindo orçamento etc.)
     estado: Mapped[str] = mapped_column(String(40), default="CADASTRO_NOME")
@@ -183,6 +184,7 @@ _NOVAS_COLUNAS = {
         "cor_pdf": "VARCHAR(20)",
         "sinal_percentual": "INTEGER",
         "condicoes_padrao": "JSON",
+        "termos_aceitos_em": "DATETIME",
     },
     "item_preco": {
         "recorrencia_meses": "INTEGER",

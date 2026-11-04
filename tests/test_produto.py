@@ -34,6 +34,7 @@ def cadastrar(bot):
     bot("Pix 529.982.247-25\nRealeza\n(46) 99999-0000\nEletricista\nElétrica Silva\nPix ou cartão")
     bot("pular")             # logo
     bot("tomada 40, chuveiro 120")
+    bot("aceito")
 
 
 def test_checklist_em_qualquer_ordem_vai_para_os_campos_certos(bot):

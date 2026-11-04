@@ -37,7 +37,7 @@ def tg(tmp_path, monkeypatch):
 
 
 def _cadastro(tg):
-    for m in ["oi", "Victor Elétrica", "Eletricista", "pular", "pular", "Pix", "pular", "pular", "tomada 40, chuveiro 120"]:
+    for m in ["oi", "Victor Elétrica", "Eletricista", "pular", "pular", "Pix", "pular", "pular", "tomada 40, chuveiro 120", "aceito"]:
         tg(m)
 
 

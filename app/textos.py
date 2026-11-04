@@ -42,7 +42,8 @@ Comandos:
 /modelo - escolher o visual do PDF
 /cor - escolher a cor do PDF
 /condicoes - garantia, prazo e outras condições que vão em todo orçamento
-/cancelar - descartar o orçamento em andamento"""
+/cancelar - descartar o orçamento em andamento
+/apagarconta - apagar todos os seus dados"""
 
 BOAS_VINDAS = ("Olá! 👋 Eu faço orçamentos profissionais em PDF a partir de um áudio seu, com Pix pronto pro "
                "cliente pagar.\n\n"
@@ -110,6 +111,13 @@ LINK_CLIENTE = ("Olá! Segue o orçamento Nº {numero:04d}. Por este link você 
 COMO_CONDICAO = ("Para incluir ou mudar: /condicao Garantia: 90 dias na mão de obra\n"
                  "Para tirar: /condicao remover Garantia\n"
                  "Falou uma condição no áudio (\"garantia de 6 meses nesse\")? Ela vale só para aquele orçamento.")
+PEDIR_TERMOS = ("📄 Antes de começar: o {produto_beta} guarda seus dados e os dos seus clientes (nome, endereço, "
+                "telefone) para montar os orçamentos, e usa um serviço de IA para entender seus áudios.\n\n"
+                "Termos de uso: {termos}\nPrivacidade: {privacidade}\n\n"
+                "Você pode apagar tudo quando quiser com /apagarconta.").replace("{produto_beta}", "bot")
+APAGAR_CONTA = ("⚠️ Isso apaga para sempre seus dados, sua tabela de preços, seus clientes, orçamentos, recibos e PDFs. "
+                "Os links que você mandou para clientes vão parar de mostrar o orçamento.\n\nTem certeza?")
+CONTA_APAGADA = "🗑️ Pronto, apaguei tudo. Se quiser voltar um dia, é só mandar /start. Obrigado por ter usado!"
 LINK_EDITOR = ("🌐 Abra para editar tudo no navegador (vale por 7 dias, não compartilhe):\n{link}\n\n"
                "Ao salvar, eu gero o PDF novo e mando aqui.")
 LINK_PERFIL = ("🌐 Abra para editar seus dados, condições, visual do PDF e a tabela de preços "

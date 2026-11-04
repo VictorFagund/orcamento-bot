@@ -16,6 +16,8 @@ def _carregar(s, token):
     link = links.buscar(s, token, "cliente")
     if link is None:
         raise HTTPException(404)
+    if link.orcamento_id is None:
+        raise HTTPException(410)  # a conta foi apagada
     orc = s.get(Orcamento, link.orcamento_id)
     prof = s.get(Profissional, link.profissional_id)
     if orc is None or prof is None:

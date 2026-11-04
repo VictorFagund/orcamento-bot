@@ -156,7 +156,9 @@ def test_fluxo_completo(bot):
     assert "Logo salva" in t
     assert "1. Troca de tomada ou interruptor" in t  # catálogo do eletricista, sem preços
     _, t = bot("tomada 40, chuveiro 120")
-    assert "Troca de tomada: R$ 40,00" in t and "Cadastro pronto" in t
+    assert "Troca de tomada: R$ 40,00" in t and "Termos de uso" in t  # aceite antes de liberar
+    _, t = bot("aceito")
+    assert "Cadastro pronto" in t
 
     # Orçamento por "áudio": chuveiro veio com id inventado e fiação não existe -> pergunta os dois
     _, t = bot(audio="Orçamento pra Dona Maria, trocar 6 tomadas, 2 chuveiros e 15 metros de fiação".encode())
@@ -190,7 +192,7 @@ def test_fluxo_completo(bot):
 
 
 def _cadastro_e_orcamento(bot):
-    for msg in ["oi", "Victor Elétrica", "Eletricista", "pular", "pular", "Pix", "pular", "pular", "tomada 40, chuveiro 120"]:
+    for msg in ["oi", "Victor Elétrica", "Eletricista", "pular", "pular", "Pix", "pular", "pular", "tomada 40, chuveiro 120", "aceito"]:
         bot(msg)
     bot("Orçamento pra Dona Maria, trocar 6 tomadas, 2 chuveiros e 15 metros de fiação")
     bot("120")
@@ -243,7 +245,7 @@ def test_editar_pelo_nome_do_cliente_e_cancelar(bot):
 
 
 def test_cancelar(bot):
-    for msg in ["oi", "Ana Pinturas", "Pintora", "pular", "pular", "pular", "pular", "pular", "tomada 40"]:
+    for msg in ["oi", "Ana Pinturas", "Pintora", "pular", "pular", "pular", "pular", "pular", "tomada 40", "aceito"]:
         bot(msg)
     _, t = bot("Orçamento pra Dona Maria")
     assert "ainda não está" in t
@@ -265,6 +267,8 @@ def test_pix_invalida_ambigua_e_catalogo(bot):
     bot("pular")  # logo
     _, t = bot("40, 120")
     assert "lista numerada" in IAFalsa.ultimo_contexto and "1. Troca de tomada ou interruptor" in IAFalsa.ultimo_contexto
+    assert "Termos de uso" in t
+    _, t = bot("aceito")
     assert "Cadastro pronto" in t
     from app.db import ItemPreco
     with bot.Sessao() as s:
@@ -373,7 +377,7 @@ def test_resumo_semanal(bot, monkeypatch):
 
 
 def test_reativacao_de_cliente(bot):
-    for msg in ["oi", "Frio Bom", "Técnico de ar condicionado", "pular", "pular", "pular", "pular", "pular", "limpeza 150"]:
+    for msg in ["oi", "Frio Bom", "Técnico de ar condicionado", "pular", "pular", "pular", "pular", "pular", "limpeza 150", "aceito"]:
         bot(msg)
     _, t = bot("/precos")
     assert "Limpeza / higienização (un) - R$ 150,00  🔁 a cada 6 meses" in t  # recorrência veio do catálogo
@@ -409,7 +413,7 @@ def test_orcamento_muito_antigo_nao_recebe_lembrete(bot):
 
 
 def test_reativacao_limitada_por_dia(bot):
-    for msg in ["oi", "Frio Bom", "Técnico de ar condicionado", "pular", "pular", "pular", "pular", "pular", "limpeza 150"]:
+    for msg in ["oi", "Frio Bom", "Técnico de ar condicionado", "pular", "pular", "pular", "pular", "pular", "limpeza 150", "aceito"]:
         bot(msg)
     for nome in ["Ana", "Bruno", "Carla", "Davi", "Elisa"]:  # 5 clientes diferentes com limpeza paga
         bot(f"Orçamento pro {nome}, limpeza de 2 aparelhos")

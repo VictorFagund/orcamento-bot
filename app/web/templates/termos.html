@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block titulo %}Termos de uso · {{ produto }}{% endblock %}
+{% block corpo %}
+<div class="topo"><h1>Termos de uso</h1><p>Versão de 03/11/2026 · beta gratuito</p></div>
+<div class="conteudo">
+  <p><b>1. O serviço.</b> O {{ produto }} monta orçamentos, recibos e páginas de aprovação a partir do que você manda
+  por áudio ou texto. Está em fase de teste (beta), é gratuito e pode mudar, ficar fora do ar ou ser encerrado.
+  Não há garantia de funcionamento contínuo.</p>
+  <p><b>2. Sua responsabilidade.</b> Os preços, serviços, condições e dados que aparecem nos documentos são os que
+  você informa. Confira cada orçamento antes de enviar ao cliente: a inteligência artificial ajuda a montar, mas
+  pode errar, e a decisão final é sua.</p>
+  <p><b>3. Dados dos seus clientes.</b> Você só deve informar dados de clientes que tenham contratado ou pedido
+  orçamento a você, e para essa finalidade.</p>
+  <p><b>4. Limite gratuito.</b> O beta tem um limite mensal de orçamentos novos, informado no próprio chat.</p>
+  <p><b>5. Pagamentos.</b> O Pix dos orçamentos vai direto para a sua chave. O {{ produto }} não recebe, não guarda
+  e não intermedeia dinheiro, e não confirma pagamentos sozinho.</p>
+  <p><b>6. Uso proibido.</b> Não use o serviço para fraude, cobrança indevida ou envio de conteúdo ilegal.
+  Contas nesse uso podem ser encerradas.</p>
+  <p><b>7. Mudanças.</b> Estes termos podem mudar; você será avisado no chat antes de a mudança valer.</p>
+  <p><b>8. Saída.</b> Você pode parar de usar e apagar todos os seus dados a qualquer momento com /apagarconta.</p>
+  <p class="pequeno">Veja também a <a href="/privacidade">política de privacidade</a>.</p>
+</div>
+{% endblock %}

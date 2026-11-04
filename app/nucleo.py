@@ -10,12 +10,14 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import func, select
+import shutil
+
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import selectinload
 from sqlalchemy.orm.attributes import flag_modified
 
 from . import calculo, catalogo, config, pix, textos
-from .db import Cliente, ItemPreco, Orcamento, OrcamentoItem, Pagamento, Profissional
+from .db import Aceite, Cliente, ItemPreco, Link, Orcamento, OrcamentoItem, Pagamento, Profissional
 from .ia import IA, completar
 from . import links
 from . import pdf as pdf_mod
@@ -61,6 +63,7 @@ def botoes_pos_envio(n: int):
 CONFIRMAR = {"ok", "sim", "s", "confirma", "confirmo", "confirmar", "pode", "pode gerar", "gerar", "gera",
              "isso", "beleza", "blz", "manda", "certo", "ta certo", "esta certo", "fechado", "perfeito"}
 CANCELAR = {"cancelar", "cancela", "cancelado", "descartar", "esquece"}
+ACEITE = {"aceito", "aceita", "li e aceito", "eu aceito", "sim", "ok", "concordo"}
 PULAR = {"pular", "pula", "nao", "nao tenho", "-", "nenhum", "nenhuma", "depois"}
 
 
@@ -130,6 +133,8 @@ class Nucleo:
             "CONFIRMANDO": self._confirmando,
             "ESCOLHENDO_ORCAMENTO": self._escolher_orcamento,
         }.get(prof.estado, self._ocioso)
+        if tratar == self._ocioso and prof.termos_aceitos_em is None:  # conta de antes dos termos existirem
+            return respostas + self._pedir_termos(prof)
         return respostas + tratar(s, prof, texto)
 
     def _interpretar(self, texto, tabela, rascunho=None, contexto=""):
@@ -147,6 +152,7 @@ class Nucleo:
             "CADASTRO_PIX": self._cad_pix,
             "CADASTRO_LOGO": self._cad_logo,
             "CADASTRO_TABELA": self._cad_tabela,
+            "CADASTRO_TERMOS": self._cad_termos,
         }
 
     def _boas_vindas(self, s, prof, texto=""):
@@ -306,9 +312,24 @@ class Nucleo:
                 return [Resposta("Não consegui identificar preços aí 🤔 Tente algo como "
                                  "\"tomada 40, chuveiro 120\" ou responda PULAR.")]
             respostas.append(Resposta(self._salvar_precos(s, prof, dados["precos"])))
+        return respostas + self._pedir_termos(prof)
+
+    def _pedir_termos(self, prof) -> list[Resposta]:
+        prof.estado = "CADASTRO_TERMOS"
+        return [Resposta(textos.PEDIR_TERMOS.format(termos=f"{config.BASE_URL}/termos",
+                                                    privacidade=f"{config.BASE_URL}/privacidade"),
+                         botoes=[[("✅ Li e aceito", "aceito")]])]
+
+    def _cad_termos(self, s, prof, texto):
+        if _norm(texto) not in ACEITE:
+            return [Resposta("Para usar, é preciso aceitar os termos. Toque em \"Li e aceito\" ou responda ACEITO.",
+                             botoes=[[("✅ Li e aceito", "aceito")]])]
+        prof.termos_aceitos_em = datetime.now()
         prof.estado = "OCIOSO"
-        respostas.append(Resposta(textos.CADASTRO_PRONTO, botoes=BOTOES_MENU))
-        return respostas
+        ja_usou = s.scalar(select(func.count()).select_from(Orcamento).where(Orcamento.profissional_id == prof.id))
+        if ja_usou:
+            return [Resposta("✅ Obrigado! Agora é só mandar o orçamento de novo.")]
+        return [Resposta(textos.CADASTRO_PRONTO, botoes=BOTOES_MENU)]
 
     # ------------------------------------------------------------------ uso normal
     def _ocioso(self, s, prof, texto):
@@ -519,6 +540,8 @@ class Nucleo:
         cmd = partes[0].lower().split("@")[0]  # Telegram pode mandar /cmd@NomeDoBot
         arg = partes[1] if len(partes) > 1 else ""
 
+        if cmd == "/apagarconta":
+            return self._apagar_conta(s, prof, arg)
         if (prof.estado == "NOVO" or prof.estado.startswith("CADASTRO")) and cmd not in ("/start", "/ajuda"):
             return [Resposta("Vamos terminar seu cadastro primeiro 🙂 Responda a pergunta anterior.")]
         if cmd == "/start":
@@ -980,6 +1003,26 @@ class Nucleo:
         if numero:
             return [Resposta(f"Alteração descartada. O orçamento Nº {numero:04d} continua como estava.")]
         return [Resposta("Orçamento descartado. Mande um novo quando quiser.")]
+
+    def _apagar_conta(self, s, prof, arg) -> list[Resposta]:
+        if arg != "confirmar":
+            return [Resposta(textos.APAGAR_CONTA, botoes=[[("🗑️ Apagar tudo", "/apagarconta confirmar")]])]
+        orcs = s.scalars(select(Orcamento).where(Orcamento.profissional_id == prof.id)).all()
+        ids = [o.id for o in orcs]
+        if ids:
+            s.execute(delete(Aceite).where(Aceite.orcamento_id.in_(ids)))
+        # links do cliente continuam existindo, sem orçamento: a página mostra "não está mais disponível"
+        s.execute(update(Link).where(Link.profissional_id == prof.id, Link.tipo == "cliente").values(orcamento_id=None))
+        s.execute(delete(Link).where(Link.profissional_id == prof.id, Link.tipo != "cliente"))
+        for o in orcs:
+            s.delete(o)  # itens e pagamentos vão junto (cascade)
+        s.execute(delete(Cliente).where(Cliente.profissional_id == prof.id))
+        for caminho in (os.path.join(self.pasta, "pdfs", str(prof.id)), os.path.join(self.pasta, "previas", str(prof.id))):
+            shutil.rmtree(caminho, ignore_errors=True)
+        if prof.logo_path and os.path.exists(prof.logo_path):
+            os.remove(prof.logo_path)
+        s.delete(prof)  # tabela de preços vai junto (cascade)
+        return [Resposta(textos.CONTA_APAGADA)]
 
     def _salvar_logo(self, prof, foto: bytes):
         pasta = os.path.join(self.pasta, "logos")

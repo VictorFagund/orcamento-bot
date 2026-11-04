@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block titulo %}Privacidade · {{ produto }}{% endblock %}
+{% block corpo %}
+<div class="topo"><h1>Política de privacidade</h1><p>Versão de 03/11/2026</p></div>
+<div class="conteudo">
+  <p><b>Quais dados guardamos.</b> Seus dados de cadastro (nome, profissão, telefone, cidade, chave Pix, logo),
+  sua tabela de preços e, para cada orçamento, os dados do cliente que você informar (nome, endereço, telefone),
+  os serviços, valores e pagamentos registrados. Quando um cliente aprova pelo link, guardamos o nome digitado,
+  a data, a hora, o endereço IP e o navegador usado, como registro do aceite.</p>
+  <p><b>Para quê.</b> Só para montar e guardar os seus orçamentos e recibos, lembrar você de retornos e cobranças,
+  e melhorar o serviço com números gerais de uso. Não vendemos nem compartilhamos seus dados para propaganda.</p>
+  <p><b>Inteligência artificial.</b> Os áudios e textos que você manda são enviados a um provedor de IA (Groq ou
+  OpenAI) para serem transcritos e interpretados. O áudio não fica guardado conosco depois de transcrito.</p>
+  <p><b>Por quanto tempo.</b> Enquanto a sua conta existir. As cópias de segurança são guardadas por 30 dias e
+  depois apagadas.</p>
+  <p><b>Como apagar.</b> Mande /apagarconta no chat do bot. Apagamos seus dados, os dos seus clientes, os
+  orçamentos e os PDFs. Os links enviados a clientes passam a mostrar que o orçamento não está mais disponível.</p>
+  <p><b>Contato.</b> Dúvidas sobre seus dados: pelo próprio chat do bot.</p>
+</div>
+{% endblock %}
