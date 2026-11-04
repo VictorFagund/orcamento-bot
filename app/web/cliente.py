@@ -5,8 +5,10 @@ from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 
-from .. import links
-from ..db import Aceite, Orcamento, Profissional
+from datetime import date
+
+from .. import eventos, links
+from ..db import Aceite, Evento, Orcamento, Profissional
 from . import pagina, visao
 
 rotas = APIRouter()
@@ -25,10 +27,22 @@ def _carregar(s, token):
     return link, prof, orc
 
 
+def _registrar_abertura(s, request, prof, orc):
+    """Uma vez por dia por IP, para o profissional abrindo o próprio link não inflar o número."""
+    ip = request.client.host if request.client else ""
+    hoje = datetime.combine(date.today(), datetime.min.time())
+    ja = s.scalars(select(Evento).where(Evento.profissional_id == prof.id, Evento.tipo == "link_aberto",
+                                        Evento.criado_em >= hoje)).all()
+    if not any((e.dados or {}).get("orcamento_id") == orc.id and (e.dados or {}).get("ip") == ip for e in ja):
+        eventos.registrar(s, prof.id, "link_aberto", orcamento_id=orc.id, ip=ip)
+        s.commit()
+
+
 @rotas.get("/o/{token}")
 def ver(request: Request, token: str, enviado: str | None = None):
     with request.app.state.Sessao() as s:
         _, prof, orc = _carregar(s, token)
+        _registrar_abertura(s, request, prof, orc)
         aceite = s.scalar(select(Aceite).where(Aceite.orcamento_id == orc.id, Aceite.revisao == (orc.revisao or 1)))
         return pagina(request, "orcamento.html", **visao.orcamento(prof, orc), token=token,
                       aceite=aceite, enviado=enviado == "1")

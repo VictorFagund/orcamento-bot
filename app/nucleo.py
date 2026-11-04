@@ -17,9 +17,9 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.orm.attributes import flag_modified
 
 from . import calculo, catalogo, config, pix, textos
-from .db import Aceite, Cliente, ItemPreco, Link, Orcamento, OrcamentoItem, Pagamento, Profissional
+from .db import Aceite, Cliente, Evento, ItemPreco, Link, Orcamento, OrcamentoItem, Pagamento, Profissional
 from .ia import IA, completar
-from . import links
+from . import eventos, links
 from . import pdf as pdf_mod
 from .pdf import gerar_pdf, gerar_recibo
 
@@ -98,9 +98,15 @@ class Nucleo:
                 respostas = self._processar(s, prof, msg)
                 s.commit()
                 return respostas
-            except Exception:
+            except Exception as erro:
                 log.exception("Erro processando mensagem de %s", canal_id)
                 s.rollback()
+                if getattr(erro, "_falha_ia", False) and prof.id:
+                    try:
+                        eventos.registrar(s, prof.id, "falha_ia", erro=type(erro).__name__)
+                        s.commit()
+                    except Exception:
+                        log.exception("Não consegui registrar a falha da IA")
                 return [Resposta("Ops, tive um problema para processar isso. Pode tentar de novo?")]
 
     def _processar(self, s, prof: Profissional, msg: Mensagem) -> list[Resposta]:
@@ -139,7 +145,11 @@ class Nucleo:
 
     def _interpretar(self, texto, tabela, rascunho=None, contexto=""):
         """Chama a IA e garante o formato da resposta, venha ela de qual modelo vier."""
-        return completar(self.ia.interpretar(texto, tabela, rascunho=rascunho, contexto=contexto))
+        try:
+            return completar(self.ia.interpretar(texto, tabela, rascunho=rascunho, contexto=contexto))
+        except Exception as erro:
+            erro._falha_ia = True  # processar() registra o evento depois do rollback
+            raise
 
     # ------------------------------------------------------------------ cadastro
     def _etapas_cadastro(self):
@@ -324,6 +334,8 @@ class Nucleo:
         if _norm(texto) not in ACEITE:
             return [Resposta("Para usar, é preciso aceitar os termos. Toque em \"Li e aceito\" ou responda ACEITO.",
                              botoes=[[("✅ Li e aceito", "aceito")]])]
+        if prof.termos_aceitos_em is None:
+            eventos.registrar(s, prof.id, "cadastro_concluido")
         prof.termos_aceitos_em = datetime.now()
         prof.estado = "OCIOSO"
         ja_usou = s.scalar(select(func.count()).select_from(Orcamento).where(Orcamento.profissional_id == prof.id))
@@ -384,6 +396,7 @@ class Nucleo:
         if _norm(texto) in CONFIRMAR or _norm(texto).startswith("ok"):
             return self._finalizar(s, prof)
         # Qualquer outra coisa é tratada como correção do orçamento
+        eventos.registrar(s, prof.id, "correcao")
         dados = self._interpretar(texto, self._tabela_para_ia(prof), rascunho=prof.rascunho)
         if dados["intencao"] == "tabela_precos" and dados["precos"] and not dados["itens"]:
             msg = self._salvar_precos(s, prof, dados["precos"])
@@ -515,6 +528,7 @@ class Nucleo:
         s.add(orc)
         s.flush()
         orc.pdf_path = gerar_pdf(prof, orc, self._caminho_pdf(prof, orc))
+        eventos.registrar(s, prof.id, "orcamento_gerado", orcamento_id=orc.id, revisao=orc.revisao)
         self._limpar_rascunho(prof)
         if orc.revisao > 1:
             msg = (f"✅ Orçamento Nº {numero:04d} atualizado (revisão {orc.revisao}). "
@@ -1023,6 +1037,7 @@ class Nucleo:
         agora = self._agora()
         if self._orcamentos_no_mes(s, prof, agora) < config.LIMITE_GRATIS:
             return None
+        eventos.registrar(s, prof.id, "limite_atingido")
         proximo = (agora.replace(day=1) + timedelta(days=32)).replace(day=1)
         return [Resposta(textos.LIMITE_ATINGIDO.format(limite=config.LIMITE_GRATIS, renova=f"{proximo:%d/%m}"))]
 
@@ -1039,6 +1054,7 @@ class Nucleo:
         for o in orcs:
             s.delete(o)  # itens e pagamentos vão junto (cascade)
         s.execute(delete(Cliente).where(Cliente.profissional_id == prof.id))
+        s.execute(delete(Evento).where(Evento.profissional_id == prof.id))
         for caminho in (os.path.join(self.pasta, "pdfs", str(prof.id)), os.path.join(self.pasta, "previas", str(prof.id))):
             shutil.rmtree(caminho, ignore_errors=True)
         if prof.logo_path and os.path.exists(prof.logo_path):
@@ -1335,6 +1351,7 @@ class Nucleo:
     # ------------------------------------------------------------------ chamadas do site
     def aprovado_pelo_cliente(self, s, prof, orc, nome: str) -> list[Resposta]:
         """O cliente aprovou pelo link: avisa o profissional, já com o botão de registrar o sinal."""
+        eventos.registrar(s, prof.id, "aprovado_link", orcamento_id=orc.id, revisao=orc.revisao)
         total = calculo.reais(orc.total_centavos)
         sinal = calculo.valor_sinal(orc.total_centavos, prof.sinal_percentual)
         if sinal < orc.total_centavos:
@@ -1350,6 +1367,7 @@ class Nucleo:
     def pedido_do_cliente(self, s, prof, orc, nome: str, texto: str) -> list[Resposta]:
         """O cliente pediu alteração pelo link. Se o profissional está livre, já abre a revisão; se está no meio de
         outro orçamento, só avisa (não pode atropelar o rascunho dele)."""
+        eventos.registrar(s, prof.id, "alteracao_link", orcamento_id=orc.id)
         aviso = Resposta(f"💬 {nome} pediu uma alteração no orçamento Nº {orc.numero:04d}:\n\"{texto[:500]}\"")
         if prof.estado != "OCIOSO" or prof.rascunho:
             aviso.botoes = [[("✏️ Abrir o orçamento para mudar", f"/editar {orc.numero}")]]

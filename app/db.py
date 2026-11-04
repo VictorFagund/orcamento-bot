@@ -148,6 +148,18 @@ class Aceite(Base):
     aceito_em: Mapped[datetime] = mapped_column(default=datetime.now)
 
 
+class Evento(Base):
+    """O que aconteceu e quando (ver app/eventos.py). Só números de uso, nada de conteúdo das mensagens."""
+
+    __tablename__ = "evento"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    profissional_id: Mapped[int] = mapped_column(index=True)  # sem FK: o evento sobrevive a mudanças de esquema
+    tipo: Mapped[str] = mapped_column(String(30), index=True)
+    dados: Mapped[dict | None] = mapped_column(JSON)
+    criado_em: Mapped[datetime] = mapped_column(default=datetime.now, index=True)
+
+
 class Link(Base):
     """Link secreto do site: orçamento para o cliente, editor do orçamento ou perfil do profissional."""
 

@@ -1,7 +1,7 @@
 """Editor do orçamento pelo navegador (só o profissional tem o link)."""
 from fastapi import APIRouter, HTTPException, Request
 
-from .. import links
+from .. import eventos, links
 from ..calculo import qtd_fmt, valor_curto
 from ..db import Orcamento, Profissional
 from . import pagina, visao
@@ -40,6 +40,8 @@ def ver(request: Request, token: str):
         link, prof, orc = _carregar(s, token)
         if orc is None and (prof.estado != "CONFIRMANDO" or not prof.rascunho):
             raise HTTPException(404, "Esse rascunho já foi gerado ou descartado. Peça um link novo com /editarweb.")
+        eventos.registrar(s, prof.id, "editor_aberto", orcamento_id=orc.id if orc else None)
+        s.commit()
         dados = request.app.state.nucleo.dados_editor(prof, orc)
         titulo = f"Orçamento Nº {orc.numero:04d}" if orc else "Orçamento em conferência"
         return pagina(request, "editor.html", **visao.cores(prof), titulo=titulo, form=_formulario(dados), erros=[])
@@ -70,6 +72,7 @@ async def salvar(request: Request, token: str):
     with request.app.state.Sessao() as s:  # o link do rascunho passa a apontar para o orçamento gerado
         link = links.buscar(s, token, "editor")
         link.orcamento_id = novo_id
+        eventos.registrar(s, prof_id, "editor_salvo", orcamento_id=novo_id)
         s.commit()
     request.app.state.avisar(canal, respostas)
     return pagina(request, "editor_salvo.html", **cores, token=token)
