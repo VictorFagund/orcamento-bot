@@ -344,6 +344,9 @@ class Nucleo:
         if dados["intencao"] == "editar" or (encaminhada and not (dados["intencao"] == "orcamento" and dados["itens"])):
             return self._pedir_edicao(s, prof, dados, texto)
         if dados["intencao"] == "orcamento" and dados["itens"]:
+            bloqueio = self._limite_atingido(s, prof)
+            if bloqueio:
+                return bloqueio
             return self._seguir_rascunho(s, prof, self._montar(prof, dados))
         return [Resposta("Não entendi como orçamento 🤔 Descreva o serviço e para quem é, por exemplo:\n"
                          "\"Orçamento pro João: instalar 2 chuveiros e trocar 4 tomadas\".\n\n/ajuda para ver tudo.")]
@@ -1003,6 +1006,25 @@ class Nucleo:
         if numero:
             return [Resposta(f"Alteração descartada. O orçamento Nº {numero:04d} continua como estava.")]
         return [Resposta("Orçamento descartado. Mande um novo quando quiser.")]
+
+    @staticmethod
+    def _agora() -> datetime:
+        return datetime.now()
+
+    def _orcamentos_no_mes(self, s, prof, agora: datetime) -> int:
+        """Orçamentos NOVOS do mês (revisão mantém o criado_em original, então não conta de novo)."""
+        inicio = agora.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        return s.scalar(select(func.count()).select_from(Orcamento).where(
+            Orcamento.profissional_id == prof.id, Orcamento.criado_em >= inicio)) or 0
+
+    def _limite_atingido(self, s, prof) -> list[Resposta] | None:
+        if prof.plano == "piloto":
+            return None
+        agora = self._agora()
+        if self._orcamentos_no_mes(s, prof, agora) < config.LIMITE_GRATIS:
+            return None
+        proximo = (agora.replace(day=1) + timedelta(days=32)).replace(day=1)
+        return [Resposta(textos.LIMITE_ATINGIDO.format(limite=config.LIMITE_GRATIS, renova=f"{proximo:%d/%m}"))]
 
     def _apagar_conta(self, s, prof, arg) -> list[Resposta]:
         if arg != "confirmar":

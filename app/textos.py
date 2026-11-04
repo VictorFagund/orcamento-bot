@@ -115,6 +115,8 @@ PEDIR_TERMOS = ("📄 Antes de começar: o {produto_beta} guarda seus dados e os
                 "telefone) para montar os orçamentos, e usa um serviço de IA para entender seus áudios.\n\n"
                 "Termos de uso: {termos}\nPrivacidade: {privacidade}\n\n"
                 "Você pode apagar tudo quando quiser com /apagarconta.").replace("{produto_beta}", "bot")
+LIMITE_ATINGIDO = ("Você já fez os {limite} orçamentos grátis deste mês 🙏 Eles renovam em {renova}.\n\n"
+                   "Enquanto isso, ajustes nos orçamentos já enviados, recibos e cobranças continuam funcionando.")
 APAGAR_CONTA = ("⚠️ Isso apaga para sempre seus dados, sua tabela de preços, seus clientes, orçamentos, recibos e PDFs. "
                 "Os links que você mandou para clientes vão parar de mostrar o orçamento.\n\nTem certeza?")
 CONTA_APAGADA = "🗑️ Pronto, apaguei tudo. Se quiser voltar um dia, é só mandar /start. Obrigado por ter usado!"
