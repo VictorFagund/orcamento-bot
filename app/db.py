@@ -2,7 +2,7 @@
 import os
 from datetime import date, datetime
 
-from sqlalchemy import JSON, ForeignKey, String, create_engine, inspect, text
+from sqlalchemy import JSON, ForeignKey, String, create_engine, event, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker
 
 
@@ -180,7 +180,18 @@ def iniciar_banco(url: str):
         pasta = os.path.dirname(url.replace("sqlite:///", ""))
         if pasta:
             os.makedirs(pasta, exist_ok=True)
-    engine = create_engine(url)
+    if url.startswith("sqlite"):
+        # bot e site escrevem no mesmo arquivo: WAL deixa ler enquanto o outro escreve, e o timeout espera a vez
+        engine = create_engine(url, connect_args={"timeout": 15})
+
+        @event.listens_for(engine, "connect")
+        def _wal(conexao, _):
+            cur = conexao.cursor()
+            cur.execute("PRAGMA journal_mode=WAL")
+            cur.execute("PRAGMA busy_timeout=15000")
+            cur.close()
+    else:
+        engine = create_engine(url)
     Base.metadata.create_all(engine)
     _migrar(engine)
     return sessionmaker(engine, expire_on_commit=False)

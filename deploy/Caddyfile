@@ -1,0 +1,5 @@
+# Troque pelo seu domínio. O Caddy pede e renova o certificado HTTPS sozinho.
+seudominio.com.br {
+	encode gzip
+	reverse_proxy localhost:8000
+}

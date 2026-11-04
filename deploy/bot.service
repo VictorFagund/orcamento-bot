@@ -1,0 +1,15 @@
+[Unit]
+Description=Bot de orçamento (Telegram)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=orcamento
+WorkingDirectory=/opt/orcamento-bot
+EnvironmentFile=/opt/orcamento-bot/.env
+ExecStart=/opt/orcamento-bot/.venv/bin/python bot_telegram.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

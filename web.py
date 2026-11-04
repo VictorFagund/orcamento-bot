@@ -7,7 +7,7 @@ import logging
 import uvicorn
 
 from app import config
-from app.avisos import enviar_telegram
+from app.avisos import enviar_telegram, instalar_alerta
 from app.db import iniciar_banco
 from app.ia import IAOpenAI
 from app.nucleo import Nucleo
@@ -19,6 +19,7 @@ app = criar_app(iniciar_banco(config.DATABASE_URL), None, enviar_telegram)
 
 
 def main():
+    instalar_alerta()
     app.state.nucleo = Nucleo(app.state.Sessao, IAOpenAI())
     uvicorn.run(app, host="0.0.0.0", port=8000, proxy_headers=True, forwarded_allow_ips="*")
 

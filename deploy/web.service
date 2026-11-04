@@ -1,0 +1,15 @@
+[Unit]
+Description=Site do bot de orçamento (links do cliente, editor, perfil)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=orcamento
+WorkingDirectory=/opt/orcamento-bot
+EnvironmentFile=/opt/orcamento-bot/.env
+ExecStart=/opt/orcamento-bot/.venv/bin/python web.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

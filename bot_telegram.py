@@ -160,6 +160,8 @@ def main():
     global nucleo
     if not config.TELEGRAM_TOKEN:
         raise SystemExit("Defina TELEGRAM_TOKEN no arquivo .env (crie o bot com o @BotFather)")
+    from app.avisos import instalar_alerta
+    instalar_alerta()
     nucleo = Nucleo(iniciar_banco(config.DATABASE_URL), IAOpenAI())
     app = (Application.builder().token(config.TELEGRAM_TOKEN).request(conexao())
            .get_updates_request(conexao()).post_init(ao_iniciar).build())
