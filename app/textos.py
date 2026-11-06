@@ -32,6 +32,7 @@ Comandos:
 /editar N - alterar um orçamento já enviado
 /aprovado N  ou  /recusado N - marcar resultado
 /adiar N - adiar o lembrete do orçamento N
+/parcelas N - dividir o pagamento (ex: /parcelas 3 50/50, /parcelas 3 3x)
 /pago N [valor] - registrar recebimento (gera recibo)
 /recibo N - reenviar o último recibo
 /areceber - o que falta receber

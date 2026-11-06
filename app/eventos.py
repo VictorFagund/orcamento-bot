@@ -4,7 +4,7 @@ from datetime import datetime
 from .db import Evento
 
 TIPOS = {"cadastro_concluido", "orcamento_gerado", "correcao", "editor_aberto", "editor_salvo", "link_aberto",
-         "aprovado_link", "alteracao_link", "limite_atingido", "falha_ia", "roteado", "nao_entendido"}
+         "aprovado_link", "alteracao_link", "limite_atingido", "falha_ia", "roteado", "nao_entendido", "parcelas"}
 
 
 def registrar(s, prof_id: int, tipo: str, **dados) -> None:

@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block titulo %}Orçamento Nº {{ numero }} · {{ prof.nome }}{% endblock %}
 {% block corpo %}
+<style>.parcelas tr.vez td { background: var(--clara); } .parcelas td { vertical-align: top; }</style>
 <div class="topo">
   <h1>{{ prof.nome }}</h1>
   <p>{{ [prof.profissao, prof.telefone, prof.cidade] | select | join(" · ") }}</p>
@@ -31,6 +32,13 @@
 
   {% if observacoes %}<div class="rotulo">Observações</div><p style="margin:0">{{ observacoes }}</p>{% endif %}
   {% if pagamento %}<div class="rotulo">Forma de pagamento</div><p style="margin:0">{{ pagamento }}</p>{% endif %}
+  {% if parcelas %}<div class="rotulo">Parcelas</div>
+  <table class="parcelas">
+    {% for p in parcelas %}<tr{% if parcela_vez and p.n == parcela_vez.n %} class="vez"{% endif %}>
+      <td><b>{{ p.rotulo }}</b>{% if p.quando %}<br><span class="pequeno">{{ p.quando }}</span>{% endif %}</td>
+      <td class="num">{{ p.valor_txt }}<br><span class="pequeno">{% if p.estado == "paga" %}✓ paga{% elif p.estado == "parcial" %}falta {{ p.falta_txt }}{% elif p.estado == "atrasada" %}em atraso{% endif %}</span></td>
+    </tr>{% endfor %}
+  </table>{% endif %}
   {% for c in condicoes %}<div class="rotulo">{{ c.rotulo }}</div><p style="margin:0">{{ c.texto }}</p>{% endfor %}
   <div class="rotulo">Validade</div><p style="margin:0">Este orçamento vale até {{ validade }}.</p>
 
@@ -45,7 +53,7 @@
 
   {% if (situacao == "aprovado" or aceite) and pix_codigo %}
   <div class="caixa pix" style="margin-top:22px">
-    <div class="rotulo" style="margin-top:0">{% if sinal_pct %}Sinal de {{ sinal_pct }}%: {{ sinal }}{% else %}Pagar com Pix: {{ sinal }}{% endif %}</div>
+    <div class="rotulo" style="margin-top:0">{% if parcela_vez %}{{ parcela_vez.rotulo }} ({{ parcela_vez.n }} de {{ parcela_vez.total_parcelas }}): {{ sinal }}{% elif sinal_pct %}Sinal de {{ sinal_pct }}%: {{ sinal }}{% else %}Pagar com Pix: {{ sinal }}{% endif %}</div>
     <img src="{{ pix_qr }}" alt="QR Code do Pix" width="200" height="200" style="display:block;margin:8px auto">
     <p class="pequeno" style="margin:0">Abra o app do seu banco, escolha Pix e aponte a câmera, ou copie o código:</p>
     <code id="pix">{{ pix_codigo }}</code>

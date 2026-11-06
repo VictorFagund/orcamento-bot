@@ -6,7 +6,7 @@ from datetime import date, datetime, timedelta
 from fpdf import FPDF
 from fpdf.fonts import FontFace
 
-from . import config, pix
+from . import config, parcelas, pix
 from .calculo import qtd_fmt, reais
 
 FONTES = os.path.join(os.path.dirname(__file__), "fontes")
@@ -327,9 +327,11 @@ def _totais(pdf, orc, cor, modelo):
 
 def _condicoes(pdf, orc, cor):
     condicoes = [(c["rotulo"], c["texto"]) for c in (getattr(orc, "condicoes", None) or [])]
+    plano = getattr(orc, "parcelas", None)
     for rotulo, valor in (
         ("Observações", orc.observacoes),
         ("Forma de pagamento", orc.pagamento),
+        ("Parcelas", parcelas.resumo(plano, orc.total_centavos) if plano else None),
         *condicoes,
         ("Validade", f"Este orçamento vale até {orc.validade:%d/%m/%Y}."),
     ):
@@ -345,8 +347,11 @@ def _condicoes(pdf, orc, cor):
 
 
 def _bloco_pix(pdf, prof, orc, caminho, cor, modelo):
+    vez = parcelas.da_vez(orc)
+    valor = vez["falta"] if vez else orc.total_centavos
+    titulo = f"Pague com Pix ({vez['rotulo']}): {reais(valor)}" if vez else f"Pague com Pix: {reais(valor)}"
     codigo = pix.gerar_copia_e_cola(prof.pix_chave, prof.nome or "", prof.cidade or "BRASIL",
-                                    orc.total_centavos, f"ORC{orc.numero:04d}")
+                                    valor, f"ORC{orc.numero:04d}")
     qr = pix.gerar_qrcode(codigo, caminho.replace(".pdf", "_pix.png"))
     if pdf.get_y() > 225:
         pdf.add_page()
@@ -364,7 +369,7 @@ def _bloco_pix(pdf, prof, orc, caminho, cor, modelo):
     pdf.set_xy(64, y + 6)
     pdf.set_font("Hanken", "B", 12)
     pdf.set_text_color(*cor)
-    pdf.cell(0, 6, _t(f"Pague com Pix: {reais(orc.total_centavos)}"), new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 6, _t(titulo), new_x="LMARGIN", new_y="NEXT")
     pdf.set_x(64)
     pdf.set_font("Hanken", "", 9.5)
     pdf.set_text_color(*SUAVE)

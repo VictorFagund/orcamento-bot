@@ -3,7 +3,7 @@ import base64
 import io
 from datetime import date
 
-from .. import calculo, pdf, pix
+from .. import calculo, parcelas, pdf, pix
 from ..calculo import qtd_fmt, reais
 
 
@@ -38,7 +38,12 @@ def orcamento(prof, orc) -> dict:
               "unit": reais(i.preco_unit_centavos), "subtotal": reais(i.subtotal_centavos)} for i in orc.itens]
     desconto = orc.desconto_centavos or 0
     sinal = calculo.valor_sinal(orc.total_centavos, prof.sinal_percentual)
-    pix_codigo = (pix.gerar_copia_e_cola(prof.pix_chave, prof.nome or "", prof.cidade or "BRASIL", sinal,
+    plano = (parcelas.situacao(orc.parcelas, orc.total_centavos, orc.recebido_centavos)
+             if getattr(orc, "parcelas", None) else None)
+    vez = parcelas.da_vez(orc)
+    if plano:  # pagamento dividido: o Pix é da parcela da vez (0 = tudo quitado)
+        sinal = vez["falta"] if vez else 0
+    pix_codigo =(pix.gerar_copia_e_cola(prof.pix_chave, prof.nome or "", prof.cidade or "BRASIL", sinal,
                                          f"ORC{orc.numero:04d}") if prof.pix_chave and sinal > 0 else None)
     pct = 50 if prof.sinal_percentual is None else prof.sinal_percentual
     return {
@@ -55,6 +60,7 @@ def orcamento(prof, orc) -> dict:
         "total": reais(orc.total_centavos), "pagamento": orc.pagamento, "observacoes": orc.observacoes,
         "condicoes": orc.condicoes or [],
         "situacao": situacao(orc),
-        "sinal": reais(sinal), "sinal_pct": pct if 0 < pct < 100 else None,
+        "sinal": reais(sinal), "sinal_pct": pct if 0 < pct < 100 and not plano else None,
+        "parcelas": plano, "parcela_vez": vez,
         "pix_codigo": pix_codigo, "pix_qr": qr_data_uri(pix_codigo) if pix_codigo else None,
     }

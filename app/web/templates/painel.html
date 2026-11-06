@@ -65,6 +65,12 @@
   <p class="pequeno" style="margin:10px 2px 0">Você fechou {{ n.fechados }} dos {{ n.orcados }} orçamentos que fez neste mês.</p>
   {% endif %}
 
+  {% if vencendo %}
+  <div class="rotulo" style="margin-top:22px">📅 Parcelas para receber nos próximos 7 dias</div>
+  <ul class="clientes">{% for v in vencendo %}<li><span>Nº {{ v.n4 }} · {{ v.cliente }} · {{ v.rotulo }}<br>
+    <span class="pequeno"{% if v.atrasada %} style="color:#8a1c1c;font-weight:700"{% endif %}>{% if v.atrasada %}venceu {{ v.vence }}{% else %}vence {{ v.vence }}{% endif %}</span></span><b>{{ v.falta }}</b></li>{% endfor %}</ul>
+  {% endif %}
+
   <nav class="chips" aria-label="Filtro">
     {% for chave, nome in filtros.items() %}<a href="{{ url_filtro(chave) }}" class="{{ 'ativo' if chave == filtro }}">{{ nome }}</a>{% endfor %}
   </nav>
@@ -79,6 +85,7 @@
     <div class="l1"><span class="cli">{{ o.cliente or "Sem nome" }}</span><span class="val">{{ o.total }}</span></div>
     <div class="l2"><span>Nº {{ o.n4 }} · {{ o.data }}</span>
       <span>{% if o.falta %}recebeu {{ o.recebido }} · falta {{ o.falta }} {% endif %}<span class="selo {{ o.situacao }}">{{ o.rotulo }}</span></span></div>
+    {% if o.vez %}<div class="pequeno" style="margin-top:4px">💳 Parcela da vez: <b>{{ o.vez.rotulo }}</b> ({{ o.vez.n }} de {{ o.vez.de }}), {{ o.vez.falta }}{% if o.vez.quando %} · {{ o.vez.quando }}{% endif %}{% if o.vez.atrasada %} · <b style="color:#8a1c1c">atrasada</b>{% endif %}</div>{% endif %}
     <div class="acoes">
       {% if o.situacao in ("aberto", "vencido") %}
         <form method="post" action="/d/{{ token }}/acao"><input type="hidden" name="numero" value="{{ o.numero }}"><input type="hidden" name="acao" value="aprovado">
@@ -88,10 +95,16 @@
           <input type="hidden" name="mes" value="{{ mes }}"><input type="hidden" name="f" value="{{ filtro }}"><input type="hidden" name="q" value="{{ q }}">
           <button>👎 Recusou</button></form>
       {% endif %}
+      {% if o.vez and o.situacao == "aprovado" %}
+        <form method="post" action="/d/{{ token }}/acao"><input type="hidden" name="numero" value="{{ o.numero }}"><input type="hidden" name="acao" value="parcial">
+          <input type="hidden" name="valor" value="{{ o.vez.valor }}">
+          <input type="hidden" name="mes" value="{{ mes }}"><input type="hidden" name="f" value="{{ filtro }}"><input type="hidden" name="q" value="{{ q }}">
+          <button class="principal">💰 Recebi {{ o.vez.rotulo }}</button></form>
+      {% endif %}
       {% if o.situacao in ("aberto", "vencido", "aprovado") %}
         <form method="post" action="/d/{{ token }}/acao"><input type="hidden" name="numero" value="{{ o.numero }}"><input type="hidden" name="acao" value="pago">
           <input type="hidden" name="mes" value="{{ mes }}"><input type="hidden" name="f" value="{{ filtro }}"><input type="hidden" name="q" value="{{ q }}">
-          <button class="{{ 'principal' if o.situacao == 'aprovado' }}">💰 Recebi tudo</button></form>
+          <button class="{{ 'principal' if o.situacao == 'aprovado' and not o.vez }}">💰 Recebi tudo</button></form>
       {% endif %}
       <a href="/d/{{ token }}/pdf/{{ o.numero }}" target="_blank" rel="noopener">📄 PDF</a>
       <a href="{{ o.link_cliente }}" target="_blank" rel="noopener">🔗 Página do cliente</a>

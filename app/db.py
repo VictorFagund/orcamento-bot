@@ -94,6 +94,8 @@ class Orcamento(Base):
     aprovado_em: Mapped[datetime | None]
     cobrancas: Mapped[int] = mapped_column(default=0)  # quantos lembretes de cobrança já foram dados
     reativado_em: Mapped[datetime | None]  # quando o profissional foi lembrado de oferecer o serviço de novo
+    # Pagamento dividido em parcelas/etapas (ver app/parcelas.py). None = paga de uma vez (ou com o sinal do perfil)
+    parcelas: Mapped[list | None] = mapped_column(JSON)
 
     cliente: Mapped[Cliente | None] = relationship()
     itens: Mapped[list["OrcamentoItem"]] = relationship(cascade="all, delete-orphan", order_by="OrcamentoItem.id")
@@ -226,6 +228,7 @@ _NOVAS_COLUNAS = {
         "desconto_percentual": "FLOAT",
         "revisao": "INTEGER NOT NULL DEFAULT 1",
         "condicoes": "JSON",
+        "parcelas": "JSON",
     },
     "orcamento_item": {
         "tipo": "VARCHAR(10)",

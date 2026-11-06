@@ -20,6 +20,7 @@ from . import calculo, catalogo, config, pix, textos
 from .db import Aceite, Cliente, Evento, ItemPreco, Link, Orcamento, OrcamentoItem, Pagamento, Profissional
 from .ia import IA, completar
 from . import eventos, links
+from . import parcelas as parc
 from . import pdf as pdf_mod
 from .pdf import gerar_pdf, gerar_recibo
 
@@ -59,7 +60,8 @@ BOTOES_MENU = [[("📝 Como fazer um orçamento", "/exemplo")],
 
 def botoes_pos_envio(n: int):
     return [[("👍 Cliente aprovou", f"/aprovado {n}"), ("👎 Recusou", f"/recusado {n}")],
-            [("💰 Já recebi", f"/pago {n}"), ("🌐 Editar no navegador", f"/editarweb {n}")]]
+            [("💰 Já recebi", f"/pago {n}"), ("🌐 Editar no navegador", f"/editarweb {n}")],
+            [("💳 Dividir o pagamento", f"/parcelas {n}")]]
 
 CONFIRMAR = {"ok", "sim", "s", "confirma", "confirmo", "confirmar", "pode", "pode gerar", "gerar", "gera",
              "isso", "beleza", "blz", "manda", "certo", "ta certo", "esta certo", "fechado", "perfeito"}
@@ -79,11 +81,11 @@ EXEMPLOS_PERFIL = {"/nome": "Elétrica Silva", "/profissao": "Eletricista", "/te
 # Rotinas que a IA pode acionar a partir de um pedido livre (nunca /apagarconta)
 ROTAS = {"/nome", "/profissao", "/telefone", "/cidade", "/pagamento", "/pix", "/perfil", "/perfilweb", "/modelo",
          "/cor", "/condicao", "/condicoes", "/editarweb", "/editar", "/orcamentos", "/pdf", "/aprovado", "/recusado",
-         "/pago", "/areceber", "/precos", "/exemplo", "/menu", "/painel"}
+         "/pago", "/areceber", "/precos", "/exemplo", "/menu", "/painel", "/parcelas"}
 ROTULOS_ROTA = {"/exemplo": "📝 Fazer um orçamento", "/perfil": "👤 Mudar meus dados", "/perfilweb": "🌐 Editar meus dados",
                 "/modelo": "🎨 Visual do PDF", "/cor": "🎨 Cor do PDF", "/condicoes": "📌 Garantia e condições",
                 "/orcamentos": "📂 Meus orçamentos", "/editarweb": "✏️ Editar um orçamento",
-                "/areceber": "💰 A receber", "/painel": "📊 Painel", "/precos": "💲 Minha tabela", "/menu": "📋 Ver tudo"}
+                "/areceber": "💰 A receber", "/painel": "📊 Painel", "/parcelas": "💳 Dividir o pagamento", "/precos": "💲 Minha tabela", "/menu": "📋 Ver tudo"}
 
 
 def _norm(texto: str) -> str:
@@ -138,6 +140,11 @@ class Nucleo:
             quem = f" {msg.encaminhada_de}" if msg.encaminhada_de else ""
             texto = f"[Mensagem ENCAMINHADA do cliente{quem}] {texto}"
 
+        if prof.estado.startswith("PARCELAS_"):  # esperando ele dizer como dividir o pagamento
+            numero = prof.estado.split("_", 1)[1]
+            prof.estado = "OCIOSO"
+            if not texto.startswith("/") and _norm(texto) not in CANCELAR:
+                return respostas + self._parcelas(s, prof, f"/parcelas {numero} {texto}")
         if texto.startswith("/"):
             return respostas + self._comando(s, prof, texto)
         if _norm(texto) in CANCELAR and prof.rascunho:
@@ -754,8 +761,14 @@ class Nucleo:
                 if orc.status == "pago":
                     return [Resposta(f"O orçamento Nº {orc.numero:04d} já está pago 💰")]
                 orc.status, orc.aprovado_em, orc.cobrancas = "aprovado", datetime.now(), 0
-                return [Resposta(textos.APROVADO.format(numero=orc.numero, n=orc.numero),
-                                 botoes=[[("💰 Já recebi tudo", f"/pago {orc.numero}")]])]
+                botoes = [[("💰 Já recebi tudo", f"/pago {orc.numero}")]]
+                vez = parc.da_vez(orc)
+                if vez:
+                    botoes.insert(0, [(f"💰 Recebi {vez['rotulo']} ({vez['falta_txt']})"[:40],
+                                       f"/pago {orc.numero} {calculo.valor_curto(vez['falta'])}")])
+                else:
+                    botoes.append([("💳 Dividir o pagamento", f"/parcelas {orc.numero}")])
+                return [Resposta(textos.APROVADO.format(numero=orc.numero, n=orc.numero), botoes=botoes)]
             orc.status = "recusado"
             return [Resposta(f"Anotado: orçamento Nº {orc.numero:04d} recusado.")]
         if cmd == "/pago":
@@ -764,6 +777,8 @@ class Nucleo:
                 return [Resposta("Use /pago N (ou /pago N 300 se foi só uma parte). Veja os números em /areceber.")]
             valor = calculo.ler_valor(texto.split(None, 2)[2]) if len(partes) > 2 else None
             return self._registrar_pagamento(s, prof, orc, valor)
+        if cmd == "/parcelas":
+            return self._parcelas(s, prof, texto)
         if cmd == "/recibo":
             orc = self._buscar_orcamento(s, prof, arg)
             if orc is None or not orc.pagamentos:
@@ -894,7 +909,88 @@ class Nucleo:
                    f"Falta {calculo.reais(orc.saldo_centavos)}.")
         if valor > saldo > 0:
             msg += f"\n(Obs: o valor é maior que o saldo, que era {calculo.reais(saldo)}.)"
+        vez = parc.da_vez(orc)
+        if vez:  # pagamento dividido: diz qual é a próxima e recomeça os lembretes de cobrança para ela
+            orc.cobrancas = 0
+            quando = f" ({vez['quando']})" if vez["quando"] else ""
+            msg += f"\n📅 Próxima: {vez['rotulo']}, {vez['falta_txt']}{quando}."
         return [Resposta(arquivo=pag.recibo_path), Resposta(msg + "\nO recibo está aí, pronto pra encaminhar ao cliente.")]
+
+    # ------------------------------------------------------------------ parcelas / etapas
+    def _parcelas(self, s, prof, texto):
+        """/parcelas N <divisão do jeito dele>. Os valores saem só do que ele disse; a conta fecha com o total."""
+        partes = texto.split(None, 2)
+        if len(partes) > 1 and partes[1].isdigit():
+            orc = self._buscar_orcamento(s, prof, partes[1])
+            pedido = partes[2] if len(partes) > 2 else ""
+            if orc is None:
+                return [Resposta("Não achei esse orçamento. Use /parcelas N (veja os números em /orcamentos).")]
+        else:  # sem número: se só há um em aberto é ele; se há vários, ele escolhe
+            abertos = s.scalars(select(Orcamento).where(Orcamento.profissional_id == prof.id,
+                                                        Orcamento.status.in_(("enviado", "aprovado")))
+                                .order_by(Orcamento.numero.desc()).limit(6)).all()
+            pedido = texto.split(None, 1)[1] if len(partes) > 1 else ""
+            if not abertos:
+                return [Resposta("Não achei orçamento em aberto para dividir. Use /parcelas N (veja /orcamentos).")]
+            if len(abertos) > 1:
+                sufixo = f" {pedido}" if pedido and len(f"/parcelas 0000 {pedido}".encode()) <= 64 else ""
+                botoes = [[(f"Nº {o.numero:04d} · {o.cliente.nome if o.cliente else 'sem cliente'} · "
+                            f"{calculo.reais(o.total_centavos)}"[:60], f"/parcelas {o.numero}{sufixo}")]
+                          for o in abertos]
+                return [Resposta("De qual orçamento você quer dividir o pagamento?", botoes=botoes)]
+            orc = abertos[0]
+        n, total = orc.numero, orc.total_centavos
+        if orc.status in ("pago", "recusado"):
+            return [Resposta(f"O orçamento Nº {n:04d} está {orc.status}, não dá mais para dividir.")]
+        opcoes = [[("½ agora, ½ na entrega", f"/parcelas {n} 50/50")],
+                  [("2x mensal", f"/parcelas {n} 2x"), ("3x mensal", f"/parcelas {n} 3x")],
+                  [("Tudo de uma vez", f"/parcelas {n} remover")]]
+
+        def perguntar(msg):
+            if prof.estado == "OCIOSO" and not prof.rascunho:
+                prof.estado = f"PARCELAS_{n}"
+            return [Resposta(msg + "\n\nToque numa opção ou me diga do seu jeito, por exemplo:\n"
+                             "\"entrada de 300 e o resto em 2x\" ou \"40% pra começar e o resto quando terminar\".",
+                             botoes=opcoes)]
+
+        if not pedido.strip():
+            atual = (f"Hoje está assim:\n{parc.resumo(orc.parcelas, total)}\n\n" if orc.parcelas else "")
+            return perguntar(f"{atual}Como o cliente vai pagar o orçamento Nº {n:04d} ({calculo.reais(total)})?")
+        if parc.quer_remover(pedido):
+            if not orc.parcelas:
+                return [Resposta(f"O orçamento Nº {n:04d} já está para pagar de uma vez.")]
+            orc.parcelas = None
+            return self._parcelas_salvas(s, prof, orc, f"✅ Pronto: o orçamento Nº {n:04d} volta a ser pago de uma vez.")
+        hoje = date.today()
+        plano = parc.simples(pedido, hoje)
+        if plano is None and getattr(self.ia, "ler_parcelas", None):
+            try:
+                plano = parc.de_ia(self.ia.ler_parcelas(pedido, calculo.reais(total)), hoje)
+            except Exception:
+                log.exception("Falha ao ler as parcelas")
+        if plano is None:
+            return perguntar(f"Não entendi como dividir o orçamento Nº {n:04d} ({calculo.reais(total)}) 🤔")
+        plano, erro = parc.normalizar(plano, total)
+        if erro:
+            return perguntar(f"⚠️ {erro}")
+        orc.parcelas = plano
+        flag_modified(orc, "parcelas")
+        orc.cobrancas = 0
+        eventos.registrar(s, prof.id, "parcelas", orcamento_id=orc.id, quantas=len(plano))
+        return self._parcelas_salvas(s, prof, orc, f"✅ Pagamento do orçamento Nº {n:04d} dividido:\n\n"
+                                     f"{parc.resumo(plano, total)}\n\nO PDF e a página do cliente já mostram as "
+                                     "parcelas, e o Pix cobra sempre a parcela da vez.")
+
+    def _parcelas_salvas(self, s, prof, orc, msg):
+        orc.pdf_path = gerar_pdf(prof, orc, self._caminho_pdf(prof, orc))
+        respostas = [Resposta(arquivo=orc.pdf_path),
+                     Resposta(msg + "\n\nEncaminhe o PDF novo para o cliente (o link dele já está atualizado).",
+                              botoes=[[("💳 Mudar a divisão", f"/parcelas {orc.numero}")]])]
+        vez = parc.da_vez(orc)
+        if prof.pix_chave and vez:
+            respostas += [Resposta(f"💸 Pix da parcela da vez ({vez['rotulo']}, {vez['falta_txt']}):"),
+                          Resposta(self._pix_do_orcamento(prof, orc))]
+        return respostas
 
     def _a_receber(self, s, prof):
         aprovados = s.scalars(select(Orcamento).where(Orcamento.profissional_id == prof.id,
@@ -904,14 +1000,16 @@ class Nucleo:
 
     def _mensagens_cobranca(self, prof, orc, dias: int | None) -> list[Resposta]:
         nome_cli = orc.cliente.nome if orc.cliente else None
-        saldo = calculo.reais(orc.saldo_centavos)
+        vez = parc.da_vez(orc)
+        valor = vez["falta"] if vez else orc.saldo_centavos
+        saldo = calculo.reais(valor) + (f" ({vez['rotulo']})" if vez else "")
         respostas = []
         if dias is not None:
             respostas.append(Resposta(textos.COBRANCA_PRESTADOR.format(
                 cliente=nome_cli or "cliente sem nome", numero=orc.numero, n=orc.numero, dias=dias, saldo=saldo),
                 botoes=[[("💰 Já recebi", f"/pago {orc.numero}")]]))
         codigo = (pix.gerar_copia_e_cola(prof.pix_chave, prof.nome or "", prof.cidade or "BRASIL",
-                                         orc.saldo_centavos, f"ORC{orc.numero:04d}") if prof.pix_chave else None)
+                                         valor, f"ORC{orc.numero:04d}") if prof.pix_chave else None)
         respostas.append(Resposta(textos.COBRANCA_CLIENTE.format(
             saudacao=f", {nome_cli}" if nome_cli else "", numero=orc.numero, saldo=saldo,
             pix=" Segue o Pix copia e cola logo abaixo." if codigo else "", assinatura=self._assinatura(prof))))
@@ -952,7 +1050,18 @@ class Nucleo:
                                                        Orcamento.cobrancas < len(config.COBRANCA_DIAS)):
                 if orc.saldo_centavos == 0:
                     continue
-                decorrido = agora - (orc.aprovado_em or orc.enviado_em or orc.criado_em)
+                inicio = orc.aprovado_em or orc.enviado_em or orc.criado_em
+                vez = parc.da_vez(orc, agora.date())
+                if vez and vez["n"] > 1:
+                    # parcela com data: cobra a partir do vencimento; parcela "na entrega" etc.: ele cobra com /cobrar
+                    if not vez["vencimento"]:
+                        continue
+                    inicio = datetime.combine(vez["vencimento"], datetime.min.time())
+                elif vez and vez["vencimento"]:
+                    inicio = max(inicio, datetime.combine(vez["vencimento"], datetime.min.time()))
+                if inicio > agora:
+                    continue
+                decorrido = agora - inicio
                 etapa = self._etapa_devida(decorrido, config.COBRANCA_DIAS, orc.cobrancas, folga_dias=60)
                 if etapa is None:
                     continue
@@ -1212,8 +1321,9 @@ class Nucleo:
 
     @staticmethod
     def _pix_do_orcamento(prof, orc) -> str:
+        vez = parc.da_vez(orc)
         return pix.gerar_copia_e_cola(prof.pix_chave, prof.nome or "", prof.cidade or "BRASIL",
-                                      orc.total_centavos, f"ORC{orc.numero:04d}")
+                                      vez["falta"] if vez else orc.total_centavos, f"ORC{orc.numero:04d}")
 
     def _caminho_pdf(self, prof, orc) -> str:
         rev = f"_r{orc.revisao}" if (orc.revisao or 1) > 1 else ""
@@ -1428,7 +1538,13 @@ class Nucleo:
         eventos.registrar(s, prof.id, "aprovado_link", orcamento_id=orc.id, revisao=orc.revisao)
         total = calculo.reais(orc.total_centavos)
         sinal = calculo.valor_sinal(orc.total_centavos, prof.sinal_percentual)
-        if sinal < orc.total_centavos:
+        vez = parc.da_vez(orc)
+        if vez:
+            msg = textos.APROVADO_LINK.format(nome=nome, numero=orc.numero, total=total,
+                                              pix=f" Pelo Pix ele paga a parcela da vez: {vez['rotulo']}, "
+                                                  f"{vez['falta_txt']}.")
+            botao = (f"💰 Já recebi {vez['rotulo']}"[:40], f"/pago {orc.numero} {calculo.valor_curto(vez['falta'])}")
+        elif sinal < orc.total_centavos:
             msg = textos.APROVADO_LINK.format(nome=nome, numero=orc.numero, total=total,
                                               pix=f" Ele vai pagar o sinal de {calculo.reais(sinal)} pelo Pix.")
             botao = ("💰 Já recebi o sinal", f"/pago {orc.numero} {calculo.valor_curto(sinal)}")

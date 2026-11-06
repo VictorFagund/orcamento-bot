@@ -15,7 +15,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from sqlalchemy import select
 
-from .. import calculo, links
+from .. import calculo, links, parcelas
 from ..db import Orcamento, Profissional
 from . import pagina, visao
 
@@ -104,9 +104,33 @@ def numeros(orcs, mes: date) -> dict:
     }
 
 
+def vencendo(orcs, hoje: date, dias: int = 7) -> list[dict]:
+    """Parcelas com data de orçamentos aprovados que vencem nos próximos dias (ou já venceram e não foram pagas)."""
+    saida = []
+    for o in orcs:
+        if o.status != "aprovado" or not o.parcelas:
+            continue
+        for p in parcelas.situacao(o.parcelas, o.total_centavos, o.recebido_centavos, hoje):
+            if p["falta"] and p["vencimento"] and (p["vencimento"] - hoje).days <= dias:
+                saida.append({"numero": o.numero, "n4": f"{o.numero:04d}",
+                              "cliente": o.cliente.nome if o.cliente else "sem cliente",
+                              "rotulo": p["rotulo"], "falta": p["falta_txt"], "data": p["vencimento"],
+                              "vence": "hoje" if p["vencimento"] == hoje else f"{p['vencimento']:%d/%m}",
+                              "atrasada": p["vencimento"] < hoje})
+    return sorted(saida, key=lambda x: x["data"])
+
+
+def _vez(orc) -> dict | None:
+    vez = parcelas.da_vez(orc) if orc.status in ("enviado", "aprovado") else None
+    if not vez:
+        return None
+    return {"rotulo": vez["rotulo"], "falta": vez["falta_txt"], "valor": calculo.valor_curto(vez["falta"]),
+            "quando": vez["quando"], "n": vez["n"], "de": vez["total_parcelas"], "atrasada": vez["estado"] == "atrasada"}
+
+
 def _linha(s, prof, orc) -> dict:
     sit = visao.situacao(orc)
-    return {"numero": orc.numero, "n4": f"{orc.numero:04d}", "cliente": orc.cliente.nome if orc.cliente else None,
+    return {"vez": _vez(orc),"numero": orc.numero, "n4": f"{orc.numero:04d}", "cliente": orc.cliente.nome if orc.cliente else None,
             "data": f"{orc.criado_em:%d/%m}", "total": calculo.reais(orc.total_centavos),
             "situacao": sit, "rotulo": ROTULO_SITUACAO[sit],
             "recebido": calculo.reais(orc.recebido_centavos) if orc.recebido_centavos else None,
@@ -126,7 +150,7 @@ def ver(request: Request, token: str, mes: str | None = None, f: str = "todos", 
         hoje = date.today()
         url = lambda **kw: f"/d/{token}?" + urlencode({"mes": f"{mes_:%Y-%m}", "f": filtro, "q": q, **kw})
         return pagina(request, "painel.html", **visao.cores(prof), prof=prof, token=token, n=numeros(orcs, mes_),
-                      lista=lista, total_orcs=len(orcs), filtro=filtro, filtros=FILTROS, q=q, msg=msg[:300],
+                      lista=lista, total_orcs=len(orcs), vencendo=vencendo(orcs, hoje), filtro=filtro, filtros=FILTROS, q=q, msg=msg[:300],
                       mes_nome=f"{MESES[mes_.month - 1]} de {mes_.year}", mes=f"{mes_:%Y-%m}",
                       anterior=url(mes=f"{_vizinho(mes_, -1):%Y-%m}"),
                       proximo=url(mes=f"{_vizinho(mes_, 1):%Y-%m}") if mes_ < date(hoje.year, hoje.month, 1) else None,
@@ -181,6 +205,13 @@ def baixar_pdf(request: Request, token: str, numero: int):
                         content_disposition_type="inline")
 
 
+def _texto_vez(orc) -> str:
+    vez = _vez(orc)
+    if not vez:
+        return ""
+    return f"{vez['rotulo']} ({vez['n']} de {vez['de']}): {vez['falta']}" + (f", {vez['quando']}" if vez["quando"] else "")
+
+
 @rotas.get("/d/{token}/planilha.csv")
 def planilha(request: Request, token: str):
     with request.app.state.Sessao() as s:
@@ -189,12 +220,13 @@ def planilha(request: Request, token: str):
         saida = io.StringIO()
         w = csv.writer(saida, delimiter=";")  # ; e vírgula decimal: abre direto no Excel em português
         w.writerow(["Número", "Data", "Cliente", "Telefone do cliente", "Situação", "Total", "Recebido", "Falta",
-                    "Aprovado em", "Validade"])
+                    "Aprovado em", "Validade", "Próxima parcela"])
         dinheiro = lambda c: f"{c / 100:.2f}".replace(".", ",")
         for o in sorted(orcs, key=lambda o: o.numero):
             w.writerow([o.numero, f"{o.criado_em:%d/%m/%Y}", o.cliente.nome if o.cliente else "",
                         (o.cliente.telefone or "") if o.cliente else "", ROTULO_SITUACAO[visao.situacao(o)],
                         dinheiro(o.total_centavos), dinheiro(o.recebido_centavos), dinheiro(o.saldo_centavos),
-                        f"{o.aprovado_em:%d/%m/%Y}" if o.aprovado_em else "", f"{o.validade:%d/%m/%Y}"])
+                        f"{o.aprovado_em:%d/%m/%Y}" if o.aprovado_em else "", f"{o.validade:%d/%m/%Y}",
+                        _texto_vez(o)])
     return Response("﻿" + saida.getvalue(), media_type="text/csv; charset=utf-8",
                     headers={"Content-Disposition": f'attachment; filename="orcamentos_{date.today():%Y-%m-%d}.csv"'})

@@ -94,6 +94,8 @@ Classifique a mensagem em "intencao":
 - "pagamento": ele avisa que RECEBEU dinheiro de um cliente ("recebi 850 da Dona Maria", "o orçamento 3 foi pago",
   "a Maria pagou 300 de entrada"). Preencha "numero_orcamento" e/ou cliente.nome se forem ditos, e "valor_pago"
   SOMENTE se o valor for dito (null = pagou o que faltava). Nesse caso não precisa preencher itens.
+  Combinar COMO o cliente vai pagar ("o 3 vai ser metade agora e metade na entrega", "parcela em 3x",
+  "entrada de 500 e o resto em 2x") NÃO é pagamento, porque ninguém pagou ainda: é "outro".
 - "outro": qualquer outra coisa.
 
 Para "orcamento":
@@ -182,6 +184,10 @@ pedido e devolva em "acoes" os comandos, na ordem, com o "argumento" (ou null). 
 /pdf N             manda de novo o PDF do orçamento N
 /aprovado N  /recusado N  /pago N   marca o orçamento N
 /areceber          o que falta receber
+/parcelas N X      divide o pagamento do orçamento N em parcelas/etapas; X = a divisão do jeito que ele disse
+                   (ex: "metade agora e metade na entrega", "3x", "entrada de 500 e o resto em 2x por mês").
+                   N null se não disse o número. Sem a divisão, X null (mostra as opções).
+                   Não confunda com /pagamento, que é o texto padrão de formas de pagamento de todos os orçamentos.
 /painel            painel no navegador: orçamentos, o que fechou, recebeu e falta receber, planilha
 /precos            tabela de preços
 /exemplo           explica como fazer um orçamento
@@ -196,6 +202,46 @@ Regras:
   sem argumento que mais provavelmente atendem (ex: ["/perfil", "/modelo", "/orcamentos"]).
 - Saudação ou conversa sem pedido -> acoes vazio, pergunta null, opcoes ["/exemplo", "/menu"].
 - Nunca use /apagarconta."""
+
+
+SCHEMA_PARCELAS = {
+    "type": "object", "additionalProperties": False,
+    "required": ["entendeu", "parcelas"],
+    "properties": {
+        "entendeu": {"type": "boolean"},
+        "parcelas": {"type": "array", "items": {
+            "type": "object", "additionalProperties": False,
+            "required": ["rotulo", "percentual", "valor", "resto", "meses", "dias", "quando"],
+            "properties": {
+                "rotulo": {"type": ["string", "null"]},
+                "percentual": {"type": ["number", "null"]},
+                "valor": {"type": ["number", "null"]},
+                "resto": {"type": "boolean"},
+                "meses": {"type": ["integer", "null"]},
+                "dias": {"type": ["integer", "null"]},
+                "quando": {"type": ["string", "null"]},
+            }}},
+    },
+}
+PROMPT_PARCELAS = """Um prestador de serviço brasileiro disse como o cliente vai pagar um orçamento, dividido em partes.
+TRANSCREVA a divisão em "parcelas", na ordem. Você NÃO decide nada: só copia o que ele disse.
+
+Cada parcela:
+- "percentual": se ele disse porcentagem ("30%", "metade" = 50, "um terço" = 33.33); senão null.
+- "valor": se ele disse um valor em reais ("500 de entrada"); senão null.
+- "resto": true se é o restante ("o resto", "o restante", "o que faltar") ou parte dele ("o resto em 2x" = 2
+  parcelas com resto true). Parcelas iguais sem valor dito ("em 3x", "4 vezes") também são resto true.
+- "meses": quantos meses depois de hoje vence, quando ele fala de mensalidade ("3x por mês", "todo mês",
+  "mensal"): 0, 1, 2... A primeira de uma série mensal é 0 se ele não disse outra coisa. Senão null.
+- "dias": quantos dias depois de hoje vence, quando ele falou em dias ("daqui 15 dias", "a cada 10 dias"). Senão null.
+- "quando": o momento que ele citou PARA AQUELA parcela, curto e com inicial minúscula ("para começar", "na entrega",
+  "no início da obra", "quando terminar o reboco", "na compra do material"). A primeira parte paga logo ("agora",
+  "de entrada", "pra começar") -> "para começar"; só ela. Parcelas do resto sem momento dito -> null.
+- "rotulo": nome curto da parcela. A primeira parte paga logo -> "Entrada"; a última paga na entrega/no fim ->
+  "Final"; etapas com nome -> o nome ("Material"); mensalidades -> "1ª mensalidade"...; senão null.
+
+Se ele não disse uma divisão (ex: só "parcela", "divide aí"), "entendeu" false e "parcelas" vazio.
+Nunca invente valor, porcentagem ou prazo que ele não disse. Valores em reais como número (1.200,50 -> 1200.5)."""
 
 
 class IA(Protocol):
@@ -245,6 +291,21 @@ class IAOpenAI:
         resp = self.cliente.chat.completions.create(
             model=config.MODELO_TEXTO, temperature=0, response_format=formato,
             messages=[{"role": "system", "content": sistema}, {"role": "user", "content": usuario}])
+        return json.loads(resp.choices[0].message.content) or {}
+
+    def ler_parcelas(self, texto: str, total: str) -> dict:
+        """Divisão do pagamento dita do jeito dele -> lista de parcelas (ver PROMPT_PARCELAS)."""
+        if config.IA_MODO_JSON == "objeto":
+            formato = {"type": "json_object"}
+            sistema = PROMPT_PARCELAS + "\n\nResponda SOMENTE com JSON com as chaves: entendeu, parcelas"
+        else:
+            formato = {"type": "json_schema",
+                       "json_schema": {"name": "parcelas", "strict": True, "schema": SCHEMA_PARCELAS}}
+            sistema = PROMPT_PARCELAS
+        resp = self.cliente.chat.completions.create(
+            model=config.MODELO_TEXTO, temperature=0, response_format=formato,
+            messages=[{"role": "system", "content": sistema},
+                      {"role": "user", "content": f"TOTAL DO ORÇAMENTO: {total}\n\nDIVISÃO: {texto}"}])
         return json.loads(resp.choices[0].message.content) or {}
 
     def interpretar(self, texto: str, tabela: list[dict], rascunho: dict | None = None, contexto: str = "") -> dict:
