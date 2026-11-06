@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block titulo %}Painel{% endblock %}
+{% block corpo %}
+<style>
+  .mesnav { display: flex; align-items: center; justify-content: space-between; margin: 0 0 12px; }
+  .mesnav a, .mesnav span.vazio { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 10px;
+       background: var(--clara); color: var(--cor); text-decoration: none; font-size: 1.2rem; font-weight: 700; }
+  .mesnav span.vazio { visibility: hidden; }
+  .mesnav b { font-size: 1.05rem; }
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .card { background: var(--clara); border-radius: 12px; padding: 12px 14px; min-width: 0; }
+  .card small { display: block; color: var(--suave); font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  .card b { display: block; font-size: 1.25rem; font-variant-numeric: tabular-nums; margin-top: 2px; overflow-wrap: anywhere; }
+  .card span { color: var(--suave); font-size: .85rem; }
+  .card.forte { background: var(--cor); color: #fff; }
+  .card.forte small, .card.forte span { color: rgba(255,255,255,.85); }
+  .chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 8px; margin: 18px 0 4px; scrollbar-width: none; }
+  .chips a { flex: none; padding: 8px 14px; border-radius: 999px; border: 1.5px solid var(--linha); color: var(--tinta);
+             text-decoration: none; font-size: .9rem; font-weight: 600; }
+  .chips a.ativo { background: var(--cor); border-color: var(--cor); color: #fff; }
+  .busca { display: flex; gap: 8px; }
+  .busca button { flex: none; width: auto; padding: 0 16px; border-radius: 10px; }
+  .orc { border: 1.5px solid var(--linha); border-radius: 12px; padding: 12px 14px; margin-top: 10px; }
+  .orc .l1 { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+  .orc .cli { font-weight: 700; overflow-wrap: anywhere; }
+  .orc .val { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .orc .l2 { display: flex; justify-content: space-between; gap: 10px; color: var(--suave); font-size: .88rem; margin-top: 2px; flex-wrap: wrap; }
+  .selo { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: .78rem; font-weight: 700; }
+  .selo.aberto { background: #eef1f5; color: #3b4652; }
+  .selo.vencido { background: #fff3e0; color: #8a4b00; }
+  .selo.aprovado { background: #e6f0fb; color: #1d4f8a; }
+  .selo.pago { background: #e7f6ec; color: #165c32; }
+  .selo.recusado { background: #fdecec; color: #8a1c1c; }
+  .acoes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .acoes form { margin: 0; }
+  .acoes button, .acoes a { font: inherit; font-size: .86rem; font-weight: 600; padding: 9px 12px; border-radius: 9px;
+       border: 1.5px solid var(--linha); background: #fff; color: var(--tinta); cursor: pointer; text-decoration: none; min-height: 40px; }
+  .acoes button.principal { background: var(--cor); border-color: var(--cor); color: #fff; }
+  details.parte { width: 100%; }
+  details.parte summary { cursor: pointer; font-size: .86rem; font-weight: 600; color: var(--cor); padding: 6px 0; list-style: none; }
+  details.parte form { display: flex; gap: 6px; }
+  details.parte input { padding: 9px 10px; }
+  .vazia { text-align: center; color: var(--suave); padding: 28px 10px; }
+  .clientes li { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--linha); }
+  .clientes { list-style: none; margin: 0; padding: 0; }
+</style>
+<div class="topo"><h1>Painel</h1><p>{{ prof.nome or "Seus orçamentos" }}</p></div>
+<div class="conteudo">
+  {% if msg %}<div class="aviso ok" role="status">{{ msg }}</div>{% endif %}
+
+  <div class="mesnav">
+    <a href="{{ anterior }}" aria-label="Mês anterior">‹</a>
+    <b>{{ mes_nome }}</b>
+    {% if proximo %}<a href="{{ proximo }}" aria-label="Próximo mês">›</a>{% else %}<span class="vazio"></span>{% endif %}
+  </div>
+  <div class="cards">
+    <div class="card"><small>Orçado</small><b>{{ n.orcado_valor }}</b><span>{{ n.orcados }} orçamento{{ "s" if n.orcados != 1 }}</span></div>
+    <div class="card"><small>Fechado</small><b>{{ n.fechado_valor }}</b>
+      <span>{% if n.taxa is not none %}{{ n.fechados }} de {{ n.orcados }} · {{ n.taxa }}%{% else %}nenhum ainda{% endif %}</span></div>
+    <div class="card"><small>Recebido no mês</small><b>{{ n.recebido }}</b></div>
+    <div class="card forte"><small>A receber</small><b>{{ n.a_receber }}</b>
+      <span>{% if n.a_receber_n %}{{ n.a_receber_n }} aprovado{{ "s" if n.a_receber_n != 1 }} com saldo{% else %}tudo em dia{% endif %}</span></div>
+  </div>
+  {% if n.taxa is not none and n.orcados >= 3 %}
+  <p class="pequeno" style="margin:10px 2px 0">Você fechou {{ n.fechados }} dos {{ n.orcados }} orçamentos que fez neste mês.</p>
+  {% endif %}
+
+  <nav class="chips" aria-label="Filtro">
+    {% for chave, nome in filtros.items() %}<a href="{{ url_filtro(chave) }}" class="{{ 'ativo' if chave == filtro }}">{{ nome }}</a>{% endfor %}
+  </nav>
+  <form class="busca" method="get" role="search">
+    <input type="hidden" name="mes" value="{{ mes }}"><input type="hidden" name="f" value="{{ filtro }}">
+    <input name="q" value="{{ q }}" placeholder="Buscar cliente ou número" aria-label="Buscar cliente ou número">
+    <button class="btn" type="submit">Buscar</button>
+  </form>
+
+  {% for o in lista %}
+  <div class="orc">
+    <div class="l1"><span class="cli">{{ o.cliente or "Sem nome" }}</span><span class="val">{{ o.total }}</span></div>
+    <div class="l2"><span>Nº {{ o.n4 }} · {{ o.data }}</span>
+      <span>{% if o.falta %}recebeu {{ o.recebido }} · falta {{ o.falta }} {% endif %}<span class="selo {{ o.situacao }}">{{ o.rotulo }}</span></span></div>
+    <div class="acoes">
+      {% if o.situacao in ("aberto", "vencido") %}
+        <form method="post" action="/d/{{ token }}/acao"><input type="hidden" name="numero" value="{{ o.numero }}"><input type="hidden" name="acao" value="aprovado">
+          <input type="hidden" name="mes" value="{{ mes }}"><input type="hidden" name="f" value="{{ filtro }}"><input type="hidden" name="q" value="{{ q }}">
+          <button class="principal">👍 Aprovou</button></form>
+        <form method="post" action="/d/{{ token }}/acao"><input type="hidden" name="numero" value="{{ o.numero }}"><input type="hidden" name="acao" value="recusado">
+          <input type="hidden" name="mes" value="{{ mes }}"><input type="hidden" name="f" value="{{ filtro }}"><input type="hidden" name="q" value="{{ q }}">
+          <button>👎 Recusou</button></form>
+      {% endif %}
+      {% if o.situacao in ("aberto", "vencido", "aprovado") %}
+        <form method="post" action="/d/{{ token }}/acao"><input type="hidden" name="numero" value="{{ o.numero }}"><input type="hidden" name="acao" value="pago">
+          <input type="hidden" name="mes" value="{{ mes }}"><input type="hidden" name="f" value="{{ filtro }}"><input type="hidden" name="q" value="{{ q }}">
+          <button class="{{ 'principal' if o.situacao == 'aprovado' }}">💰 Recebi tudo</button></form>
+      {% endif %}
+      <a href="/d/{{ token }}/pdf/{{ o.numero }}" target="_blank" rel="noopener">📄 PDF</a>
+      <a href="{{ o.link_cliente }}" target="_blank" rel="noopener">🔗 Página do cliente</a>
+      {% if o.situacao in ("aberto", "vencido", "aprovado") %}
+      <details class="parte"><summary>+ Recebi só uma parte</summary>
+        <form method="post" action="/d/{{ token }}/acao"><input type="hidden" name="numero" value="{{ o.numero }}"><input type="hidden" name="acao" value="parcial">
+          <input type="hidden" name="mes" value="{{ mes }}"><input type="hidden" name="f" value="{{ filtro }}"><input type="hidden" name="q" value="{{ q }}">
+          <input name="valor" inputmode="decimal" placeholder="Quanto? ex: 300" aria-label="Valor recebido" required>
+          <button class="principal" type="submit">Registrar</button></form>
+      </details>
+      {% endif %}
+    </div>
+  </div>
+  {% else %}
+  <div class="vazia">{% if total_orcs %}Nenhum orçamento neste filtro.{% else %}Você ainda não tem orçamentos. Mande um áudio no chat descrevendo o serviço!{% endif %}</div>
+  {% endfor %}
+
+  {% if n.clientes %}
+  <div class="rotulo" style="margin-top:26px">Quem mais pagou</div>
+  <ul class="clientes">{% for nome, v in n.clientes %}<li><span>{{ nome }}</span><b>{{ v }}</b></li>{% endfor %}</ul>
+  {% endif %}
+
+  <a class="btn claro" style="margin-top:26px" href="/d/{{ token }}/planilha.csv">⬇️ Baixar planilha (Excel)</a>
+  <p class="pequeno" style="text-align:center;margin-top:8px">Todos os orçamentos, com valores recebidos e o que falta.</p>
+</div>
+{% endblock %}
+{% block rodape %}{{ produto }} · este link é só seu, não compartilhe{% endblock %}

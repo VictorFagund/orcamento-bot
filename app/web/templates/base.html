@@ -43,7 +43,7 @@
 <body>
 <div class="folha">
 {% block corpo %}{% endblock %}
-<p class="rodape">Orçamento feito com {{ produto }}</p>
+<p class="rodape">{% block rodape %}Orçamento feito com {{ produto }}{% endblock %}</p>
 </div>
 </body>
 </html>

@@ -38,7 +38,7 @@ def criar_app(Sessao, nucleo, avisar: Callable) -> FastAPI:
     def saude():
         return {"ok": True}
 
-    for modulo in ("cliente", "editor", "perfil", "legal"):
+    for modulo in ("cliente", "editor", "perfil", "painel", "legal"):
         try:
             rotas = __import__(f"{__name__}.{modulo}", fromlist=["rotas"])
         except ModuleNotFoundError as e:

@@ -8,7 +8,8 @@ from . import config
 from .db import Link
 
 VALIDADE_DIAS = 7  # editor e perfil; o link do cliente não expira
-PREFIXO = {"cliente": "o", "editor": "e", "perfil": "p"}
+VALIDADE_PAINEL_DIAS = 30  # o painel é para reabrir sempre
+PREFIXO = {"cliente": "o", "editor": "e", "perfil": "p", "painel": "d"}
 
 
 def agora() -> datetime:
@@ -24,7 +25,8 @@ def criar(s, prof, tipo: str, orc=None) -> Link:
             return existente
     link = Link(token=secrets.token_urlsafe(16), tipo=tipo, profissional_id=prof.id,
                 orcamento_id=orc.id if orc is not None else None,
-                expira_em=None if tipo == "cliente" else agora() + timedelta(days=VALIDADE_DIAS))
+                expira_em=None if tipo == "cliente" else agora() + timedelta(
+                    days=VALIDADE_PAINEL_DIAS if tipo == "painel" else VALIDADE_DIAS))
     s.add(link)
     s.flush()
     return link

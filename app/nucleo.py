@@ -53,7 +53,8 @@ BOTOES_RESUMO = [[("✅ Está certo, gerar PDF", "ok")],
 BOTOES_MENU = [[("📝 Como fazer um orçamento", "/exemplo")],
                [("💲 Minha tabela", "/precos"), ("📂 Orçamentos", "/orcamentos")],
                [("💰 A receber", "/areceber"), ("🎨 Visual do PDF", "/modelo")],
-               [("👤 Meus dados", "/perfil"), ("📋 Todos os comandos", "/comandos")]]
+               [("👤 Meus dados", "/perfil"), ("📊 Painel", "/painel")],
+               [("📋 Todos os comandos", "/comandos")]]
 
 
 def botoes_pos_envio(n: int):
@@ -78,11 +79,11 @@ EXEMPLOS_PERFIL = {"/nome": "Elétrica Silva", "/profissao": "Eletricista", "/te
 # Rotinas que a IA pode acionar a partir de um pedido livre (nunca /apagarconta)
 ROTAS = {"/nome", "/profissao", "/telefone", "/cidade", "/pagamento", "/pix", "/perfil", "/perfilweb", "/modelo",
          "/cor", "/condicao", "/condicoes", "/editarweb", "/editar", "/orcamentos", "/pdf", "/aprovado", "/recusado",
-         "/pago", "/areceber", "/precos", "/exemplo", "/menu"}
+         "/pago", "/areceber", "/precos", "/exemplo", "/menu", "/painel"}
 ROTULOS_ROTA = {"/exemplo": "📝 Fazer um orçamento", "/perfil": "👤 Mudar meus dados", "/perfilweb": "🌐 Editar meus dados",
                 "/modelo": "🎨 Visual do PDF", "/cor": "🎨 Cor do PDF", "/condicoes": "📌 Garantia e condições",
                 "/orcamentos": "📂 Meus orçamentos", "/editarweb": "✏️ Editar um orçamento",
-                "/areceber": "💰 A receber", "/precos": "💲 Minha tabela", "/menu": "📋 Ver tudo"}
+                "/areceber": "💰 A receber", "/painel": "📊 Painel", "/precos": "💲 Minha tabela", "/menu": "📋 Ver tudo"}
 
 
 def _norm(texto: str) -> str:
@@ -644,6 +645,8 @@ class Nucleo:
             return [Resposta("👤 Seus dados (aparecem no orçamento):\n\n" + dados + "\n\n" + textos.COMO_MUDAR_PERFIL,
                              botoes=[[("🌐 Editar tudo no navegador", "/perfilweb")],
                                      [("🎨 Mudar o visual do PDF", "/modelo")]])]
+        if cmd == "/painel":
+            return [Resposta(textos.LINK_PAINEL.format(link=links.url(links.criar(s, prof, "painel"))))]
         if cmd == "/perfilweb":
             return [Resposta(textos.LINK_PERFIL.format(link=links.url(links.criar(s, prof, "perfil"))))]
         if cmd in CAMPOS_PERFIL:
@@ -730,7 +733,8 @@ class Nucleo:
                     return f"aprovado (falta {calculo.reais(o.saldo_centavos)})"
                 return o.status
             linhas = [f"{emoji.get(o.status, '')} {self._linha_orc(o)} - {situacao(o)}" for o in orcs]
-            return [Resposta("Últimos orçamentos:\n\n" + "\n".join(linhas))]
+            return [Resposta("Últimos orçamentos:\n\n" + "\n".join(linhas),
+                             botoes=[[("📊 Ver tudo no painel", "/painel")]])]
         if cmd == "/editar":
             orc = self._buscar_orcamento(s, prof, arg)
             if orc is None:
@@ -777,7 +781,8 @@ class Nucleo:
                       f"{calculo.reais(o.saldo_centavos)}" for o in abertos]
             total = sum(o.saldo_centavos for o in abertos)
             return [Resposta("💰 A receber:\n\n" + "\n".join(linhas) + f"\n\nTotal: {calculo.reais(total)}\n"
-                             "Recebeu? /pago N   |   Precisa cobrar? /cobrar N")]
+                             "Recebeu? /pago N   |   Precisa cobrar? /cobrar N",
+                             botoes=[[("📊 Ver tudo no painel", "/painel")]])]
         if cmd == "/cobrar":
             orc = self._buscar_orcamento(s, prof, arg)
             if orc is None or orc.saldo_centavos == 0:
@@ -1405,6 +1410,19 @@ class Nucleo:
             return []
 
     # ------------------------------------------------------------------ chamadas do site
+    ACOES_PAINEL = {"/pago", "/aprovado", "/recusado", "/pdf"}
+
+    def acao_painel(self, prof_id: int, comando: str) -> tuple[str, list[Resposta]]:
+        """Botão do painel (pago, aprovado, recusado, PDF): roda o mesmo comando do chat.
+        Devolve (canal para avisar, respostas). O recibo vai para o chat, pronto para encaminhar."""
+        if comando.split()[0] not in self.ACOES_PAINEL:
+            raise ValueError(f"ação do painel não permitida: {comando}")
+        with self.Sessao() as s:
+            prof = s.get(Profissional, prof_id)
+            respostas = self._comando(s, prof, comando)
+            s.commit()
+            return prof.canal_id, respostas
+
     def aprovado_pelo_cliente(self, s, prof, orc, nome: str) -> list[Resposta]:
         """O cliente aprovou pelo link: avisa o profissional, já com o botão de registrar o sinal."""
         eventos.registrar(s, prof.id, "aprovado_link", orcamento_id=orc.id, revisao=orc.revisao)

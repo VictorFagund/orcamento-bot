@@ -182,6 +182,7 @@ pedido e devolva em "acoes" os comandos, na ordem, com o "argumento" (ou null). 
 /pdf N             manda de novo o PDF do orçamento N
 /aprovado N  /recusado N  /pago N   marca o orçamento N
 /areceber          o que falta receber
+/painel            painel no navegador: orçamentos, o que fechou, recebeu e falta receber, planilha
 /precos            tabela de preços
 /exemplo           explica como fazer um orçamento
 /menu              menu geral
