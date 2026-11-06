@@ -75,6 +75,16 @@ EXEMPLOS_PERFIL = {"/nome": "Elétrica Silva", "/profissao": "Eletricista", "/te
                    "/cidade": "Realeza - PR", "/pagamento": "Pix ou cartão, 50% de entrada"}
 
 
+# Rotinas que a IA pode acionar a partir de um pedido livre (nunca /apagarconta)
+ROTAS = {"/nome", "/profissao", "/telefone", "/cidade", "/pagamento", "/pix", "/perfil", "/perfilweb", "/modelo",
+         "/cor", "/condicao", "/condicoes", "/editarweb", "/editar", "/orcamentos", "/pdf", "/aprovado", "/recusado",
+         "/pago", "/areceber", "/precos", "/exemplo", "/menu"}
+ROTULOS_ROTA = {"/exemplo": "📝 Fazer um orçamento", "/perfil": "👤 Mudar meus dados", "/perfilweb": "🌐 Editar meus dados",
+                "/modelo": "🎨 Visual do PDF", "/cor": "🎨 Cor do PDF", "/condicoes": "📌 Garantia e condições",
+                "/orcamentos": "📂 Meus orçamentos", "/editarweb": "✏️ Editar um orçamento",
+                "/areceber": "💰 A receber", "/precos": "💲 Minha tabela", "/menu": "📋 Ver tudo"}
+
+
 def _norm(texto: str) -> str:
     sem_acento = unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode()
     return re.sub(r"[^\w\s-]", "", sem_acento.lower()).strip()
@@ -360,8 +370,49 @@ class Nucleo:
             if bloqueio:
                 return bloqueio
             return self._seguir_rascunho(s, prof, self._montar(prof, dados))
-        return [Resposta("Não entendi como orçamento 🤔 Descreva o serviço e para quem é, por exemplo:\n"
-                         "\"Orçamento pro João: instalar 2 chuveiros e trocar 4 tomadas\".\n\n/ajuda para ver tudo.")]
+        return self._rotear(s, prof, texto, "Nenhum orçamento aberto agora.",
+                            "Não entendi como orçamento 🤔 Descreva o serviço e para quem é, por exemplo:\n"
+                            "\"Orçamento pro João: instalar 2 chuveiros e trocar 4 tomadas\".")
+
+    # ------------------------------------------------------------------ pedidos livres
+    def _rotear(self, s, prof, texto, contexto, sem_rota):
+        """Pedido fora do padrão (não é orçamento, correção nem pagamento): a IA escolhe a rotina do bot.
+
+        Nunca termina em beco sem saída: ou executa os comandos, ou pergunta com botões das rotinas mais prováveis.
+        """
+        rotear = getattr(self.ia, "rotear", None)
+        rota = {}
+        if rotear:
+            try:
+                rota = rotear(texto, contexto) or {}
+            except Exception:
+                log.exception("Falha ao rotear pedido livre")
+        acoes = []
+        for a in (rota.get("acoes") or [])[:5]:
+            cmd = str(a.get("comando") or "").strip().lower().split()[0:1]
+            if cmd and cmd[0] in ROTAS:
+                arg = str(a.get("argumento") or "").strip()
+                acoes.append(f"{cmd[0]} {arg}".strip())
+        if "/modelo" in acoes:  # a escolha do modelo já oferece a cor em seguida
+            acoes = [c for c in acoes if c != "/cor"]
+        if "/perfilweb" in acoes:  # a página já mostra e edita tudo
+            acoes = [c for c in acoes if c != "/perfil"]
+        acoes = list(dict.fromkeys(acoes))
+        if acoes:
+            eventos.registrar(s, prof.id, "roteado", comandos=acoes)
+            respostas = []
+            for comando in acoes:
+                respostas += self._comando(s, prof, comando)
+            return respostas
+        eventos.registrar(s, prof.id, "nao_entendido", texto=texto[:200])
+        opcoes = [o.strip().lower() for o in rota.get("opcoes") or [] if str(o).strip().lower() in ROTULOS_ROTA]
+        if not opcoes:
+            opcoes = ["/exemplo", "/perfil", "/orcamentos", "/menu"]
+        pergunta = (rota.get("pergunta") or "").strip()
+        if not pergunta:
+            pergunta = sem_rota + "\n\nOu era alguma destas?"
+        botoes = [[(ROTULOS_ROTA[o], o)] for o in dict.fromkeys(opcoes[:4])]
+        return [Resposta(pergunta, botoes=botoes)]
 
     def _seguir_rascunho(self, s, prof, rascunho):
         """Depois de montar/corrigir: pergunta preços que faltam ou mostra o resumo para conferência."""
@@ -404,8 +455,13 @@ class Nucleo:
             self._guardar_rascunho(prof, rascunho)
             return [Resposta(msg), Resposta(self._resumo(rascunho), botoes=BOTOES_RESUMO)]
         if not dados["itens"]:
-            return [Resposta("Não entendi a correção 🤔 Diga o que mudar, por exemplo: \"são 8 tomadas\", "
-                             "\"tira o chuveiro\" ou \"dá 10% de desconto\".", botoes=BOTOES_RESUMO)]
+            respostas = self._rotear(s, prof, texto, "Há um orçamento aberto esperando confirmação; a mensagem "
+                                     "não mudou os itens dele.",
+                                     "Não entendi a correção 🤔 Diga o que mudar, por exemplo: \"são 8 tomadas\", "
+                                     "\"tira o chuveiro\" ou \"dá 10% de desconto\".")
+            if prof.estado == "CONFIRMANDO" and prof.rascunho:  # volta para o orçamento aberto
+                respostas.append(Resposta(self._resumo(prof.rascunho), botoes=BOTOES_RESUMO))
+            return respostas
         return self._seguir_rascunho(s, prof, self._montar(prof, dados))
 
     # ------------------------------------------------------------------ edição de orçamento já enviado

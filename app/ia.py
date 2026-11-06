@@ -147,6 +147,56 @@ Pistas: um número de celular que aparece junto de "pix" é a chave Pix; sem ess
 na lista é forma de pagamento, não chave. Se algo não foi dito, use null. Nunca invente."""
 
 
+SCHEMA_ROTA = {
+    "type": "object", "additionalProperties": False,
+    "required": ["acoes", "pergunta", "opcoes"],
+    "properties": {
+        "acoes": {"type": "array", "items": {
+            "type": "object", "additionalProperties": False, "required": ["comando", "argumento"],
+            "properties": {"comando": {"type": "string"}, "argumento": {"type": ["string", "null"]}}}},
+        "pergunta": {"type": ["string", "null"]},
+        "opcoes": {"type": "array", "items": {"type": "string"}},
+    },
+}
+PROMPT_ROTA = """Você é o roteador de um bot de orçamentos usado por prestadores de serviço brasileiros. Eles falam do
+jeito deles, informal, às vezes vago ("deixa mais bonito", "tá errado meu nome", "quero ver o do João de novo").
+A mensagem NÃO foi entendida como orçamento novo, correção ou pagamento. Descubra qual ROTINA do bot atende o
+pedido e devolva em "acoes" os comandos, na ordem, com o "argumento" (ou null). Comandos disponíveis:
+
+/nome X            muda o nome que aparece no orçamento
+/profissao X       muda a profissão (ex: Eletricista), inicial maiúscula
+/telefone X        muda o telefone
+/cidade X          muda a cidade
+/pagamento X       muda as formas de pagamento oferecidas (ex: "Pix ou cartão, 50% de entrada")
+/pix X             muda a chave Pix (copie exatamente como foi dita)
+/perfil            mostra os dados cadastrados (use quando quer mudar dados mas não disse o novo valor)
+/perfilweb         página para editar todos os dados de uma vez
+/modelo X          visual do PDF; X = classico | moderno | simples, ou null para ver os modelos
+/cor X             cor do PDF; X = azul | verde | vinho | grafite | laranja | roxo, ou null para ver as cores
+/condicao R: T     condição fixa em todo orçamento, ex "Garantia: 90 dias" (argumento "Garantia: 90 dias")
+/condicao remover R  tira a condição de rótulo R
+/condicoes         mostra as condições fixas
+/editarweb N       abre o orçamento N (ou o aberto, se null) no navegador para editar
+/editar N X        muda o orçamento já enviado N com a instrução X (argumento "N X"; só se o número N foi dito)
+/orcamentos        lista os orçamentos
+/pdf N             manda de novo o PDF do orçamento N
+/aprovado N  /recusado N  /pago N   marca o orçamento N
+/areceber          o que falta receber
+/precos            tabela de preços
+/exemplo           explica como fazer um orçamento
+/menu              menu geral
+
+Regras:
+- Vários pedidos numa mensagem -> várias ações ("meu nome é Elétrica Silva e a cidade é Realeza" -> /nome e /cidade).
+- Só use valores que estão na mensagem. Nunca invente nome, número, valor ou chave.
+- Pedido de mudança sem o novo valor -> o comando que mostra/abre a rotina (/perfil, /modelo, /cor, /condicoes).
+- Se der para entender a área mas não o pedido exato, prefira a rotina que mostra opções a não fazer nada.
+- Se realmente não der para saber, "acoes" vazio, "pergunta" curta e amigável e em "opcoes" de 2 a 4 comandos
+  sem argumento que mais provavelmente atendem (ex: ["/perfil", "/modelo", "/orcamentos"]).
+- Saudação ou conversa sem pedido -> acoes vazio, pergunta null, opcoes ["/exemplo", "/menu"].
+- Nunca use /apagarconta."""
+
+
 class IA(Protocol):
     def transcrever(self, audio: bytes, nome_arquivo: str = "audio.ogg") -> str: ...
 
@@ -181,6 +231,20 @@ class IAOpenAI:
             messages=[{"role": "system", "content": sistema}, {"role": "user", "content": texto}])
         dados = json.loads(resp.choices[0].message.content) or {}
         return {k: (str(dados.get(k)).strip() or None) if dados.get(k) else None for k in SCHEMA_CADASTRO["required"]}
+
+    def rotear(self, texto: str, contexto: str = "") -> dict:
+        """Pedido livre que não é orçamento -> comandos do bot (ou uma pergunta com opções)."""
+        if config.IA_MODO_JSON == "objeto":
+            formato = {"type": "json_object"}
+            sistema = PROMPT_ROTA + "\n\nResponda SOMENTE com JSON com as chaves: acoes, pergunta, opcoes"
+        else:
+            formato = {"type": "json_schema", "json_schema": {"name": "rota", "strict": True, "schema": SCHEMA_ROTA}}
+            sistema = PROMPT_ROTA
+        usuario = (f"CONTEXTO: {contexto}\n\n" if contexto else "") + f"MENSAGEM: {texto}"
+        resp = self.cliente.chat.completions.create(
+            model=config.MODELO_TEXTO, temperature=0, response_format=formato,
+            messages=[{"role": "system", "content": sistema}, {"role": "user", "content": usuario}])
+        return json.loads(resp.choices[0].message.content) or {}
 
     def interpretar(self, texto: str, tabela: list[dict], rascunho: dict | None = None, contexto: str = "") -> dict:
         partes = [f"TABELA DO PROFISSIONAL (sem preços): {json.dumps(tabela, ensure_ascii=False)}"]
