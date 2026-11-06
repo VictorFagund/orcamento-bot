@@ -3,6 +3,7 @@ import os
 from datetime import date, datetime
 
 from sqlalchemy import JSON, ForeignKey, String, create_engine, event, inspect, text
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker
 
 
@@ -238,9 +239,15 @@ _NOVAS_COLUNAS = {
 
 def _migrar(engine):
     insp = inspect(engine)
-    with engine.begin() as con:
-        for tabela, colunas in _NOVAS_COLUNAS.items():
-            existentes = {c["name"] for c in insp.get_columns(tabela)}
-            for nome, tipo in colunas.items():
-                if nome not in existentes:
+    for tabela, colunas in _NOVAS_COLUNAS.items():
+        existentes = {c["name"] for c in insp.get_columns(tabela)}
+        for nome, tipo in colunas.items():
+            if nome in existentes:
+                continue
+            try:
+                with engine.begin() as con:
                     con.execute(text(f"ALTER TABLE {tabela} ADD COLUMN {nome} {tipo}"))
+            except OperationalError as erro:
+                # bot e site sobem juntos e os dois tentam criar a coluna: o segundo só encontra ela pronta
+                if "duplicate column" not in str(erro).lower():
+                    raise
