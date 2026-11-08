@@ -152,6 +152,45 @@ COMO_CORRIGIR = ("✏️ Me diga o que mudar, por áudio ou texto. Exemplos:\n\n
                  "• \"são 8 tomadas\"\n• \"tira o chuveiro\"\n• \"a pastilha é 220\"\n"
                  "• \"dá 10% de desconto\" ou \"fecha em 700\"\n• \"o cliente é o João, Rua X 45\"")
 
+IA_NO_LIMITE = ("⏳ Estou com muitos pedidos agora e preciso de alguns minutos. Mande de novo daqui a pouco? "
+                "Seus orçamentos e dados estão salvos; só essa última mensagem não foi lida.")
+
+# Fatos do produto para a IA responder dúvidas de quem usa ("dá pra usar no WhatsApp?", "meus dados ficam seguros?").
+# Ela só pode responder o que está aqui: mantenha cada linha verdadeira quando o produto mudar.
+SOBRE_O_BOT = """- O que é: um assistente que monta orçamentos profissionais em PDF a partir de um áudio ou texto do prestador,
+  com Pix pronto. Também faz recibo, cobrança, lembretes e um painel com o que fechou e o que falta receber.
+- Quanto custa: durante o teste (beta) é grátis, até {limite} orçamentos novos por mês. Ajustes em orçamentos já
+  enviados, recibos e cobranças não contam no limite. Como vai ser depois do teste ainda não foi decidido: não diga
+  que vai continuar grátis nem que vai ser pago.
+- Como o cliente recebe: depois de gerar, o bot manda aqui o PDF e um link do cliente. O prestador encaminha os dois
+  pelo WhatsApp (ou onde quiser). No link o cliente vê o orçamento, aprova e paga com Pix pelo celular, e o bot
+  avisa o prestador. O bot nunca manda mensagem direto para o cliente.
+- WhatsApp: por enquanto o bot funciona no Telegram. O cliente não precisa ter Telegram: ele recebe o PDF e o link
+  pelo WhatsApp, encaminhados pelo prestador.
+- Computador: o Telegram tem versão para computador e navegador, e o painel (/painel), o editor de orçamento
+  (/editarweb) e o editor de dados (/perfilweb) abrem no navegador.
+- Pagamento do cliente: cada orçamento sai com Pix (QR Code e copia e cola) para a chave Pix do prestador. O dinheiro
+  cai direto na conta do prestador; o bot não passa nem guarda dinheiro. O bot só gera Pix, não cobra cartão: o prestador pode
+  escrever as formas que aceita (ex: "Pix ou cartão") com /pagamento, e elas aparecem no orçamento.
+- Parcelas: dá para dividir o pagamento em entrada e entrega, 3x mensal etc. com /parcelas N.
+- Dados: o bot guarda os dados do prestador e dos clientes dele (nome, endereço, telefone) só para montar os
+  orçamentos, e usa um serviço de IA para entender os áudios. Os termos de uso e a privacidade aparecem no cadastro.
+  /apagarconta apaga tudo, para sempre.
+- Conta: cada conta é ligada a um Telegram. Ainda não existe conta de equipe; um ajudante com outro Telegram teria
+  outra conta, com outra tabela e outros orçamentos.
+- Internet: precisa de internet (o Telegram e a IA funcionam online). Não existe app próprio para baixar.
+- Preços: saem da tabela do prestador ou do que ele disser no áudio. A IA nunca inventa nem calcula preço.
+- Se o cliente não responder ou não pagar: o bot avisa o prestador quando um orçamento fica dias sem resposta e quando
+  um pagamento atrasa, com mensagem pronta (e o Pix) para ele mandar ao cliente. /cobrar N gera a cobrança na hora.
+- Recebeu: "recebi 300 da Maria" ou /pago N registra e gera o recibo para encaminhar.
+- Errou algo: antes de gerar, é só dizer o que mudar. Depois de enviado: /editar N, ou encaminhar a mensagem do cliente.
+- Apagar um orçamento: não dá para apagar um orçamento já gerado; marque como recusado com /recusado N. O que ainda
+  está em conferência é descartado com /cancelar.
+- Logo: é só mandar a foto da logo aqui que ela vai no topo dos PDFs.
+- Nota fiscal: o bot não emite nota fiscal. Ele faz orçamento, recibo e cobrança.
+- Sair: /apagarconta apaga a conta e todos os dados (pede confirmação antes).
+- É um robô: sim, é um assistente automático com IA. Os orçamentos saem no nome do prestador."""
+
 COMO_MUDAR_PERFIL = ("Para corrigir, mande o comando com o valor certo:\n"
                      "/nome Elétrica Silva\n/profissao Eletricista\n/telefone (46) 99999-0000\n"
                      "/cidade Realeza - PR\n/pagamento Pix ou cartão, 50% de entrada\n/pix SUA_CHAVE\n"

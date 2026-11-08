@@ -120,6 +120,8 @@ class Nucleo:
                         s.commit()
                     except Exception:
                         log.exception("Não consegui registrar a falha da IA")
+                if getattr(erro, "status_code", None) == 429 or type(erro).__name__ == "RateLimitError":
+                    return [Resposta(textos.IA_NO_LIMITE)]
                 return [Resposta("Ops, tive um problema para processar isso. Pode tentar de novo?")]
 
     def _processar(self, s, prof: Profissional, msg: Mensagem) -> list[Resposta]:
@@ -378,7 +380,7 @@ class Nucleo:
             if bloqueio:
                 return bloqueio
             return self._seguir_rascunho(s, prof, self._montar(prof, dados))
-        return self._rotear(s, prof, texto, "Nenhum orçamento aberto agora.",
+        return self._rotear(s, prof, texto, self._contexto_ocioso(s, prof),
                             "Não entendi como orçamento 🤔 Descreva o serviço e para quem é, por exemplo:\n"
                             "\"Orçamento pro João: instalar 2 chuveiros e trocar 4 tomadas\".")
 
@@ -406,14 +408,19 @@ class Nucleo:
         if "/perfilweb" in acoes:  # a página já mostra e edita tudo
             acoes = [c for c in acoes if c != "/perfil"]
         acoes = list(dict.fromkeys(acoes))
+        resposta = str(rota.get("resposta") or "").strip()[:800]
+        opcoes = [o.strip().lower() for o in rota.get("opcoes") or [] if str(o).strip().lower() in ROTULOS_ROTA]
         if acoes:
             eventos.registrar(s, prof.id, "roteado", comandos=acoes)
-            respostas = []
+            respostas = [Resposta(resposta)] if resposta else []
             for comando in acoes:
                 respostas += self._comando(s, prof, comando)
             return respostas
+        if resposta:  # dúvida sobre o bot, respondida com os fatos do produto (textos.SOBRE_O_BOT)
+            eventos.registrar(s, prof.id, "duvida", texto=texto[:200])
+            botoes = [[(ROTULOS_ROTA[o], o)] for o in dict.fromkeys(opcoes[:3])]
+            return [Resposta(resposta, botoes=botoes or None)]
         eventos.registrar(s, prof.id, "nao_entendido", texto=texto[:200])
-        opcoes = [o.strip().lower() for o in rota.get("opcoes") or [] if str(o).strip().lower() in ROTULOS_ROTA]
         if not opcoes:
             opcoes = ["/exemplo", "/perfil", "/orcamentos", "/menu"]
         pergunta = (rota.get("pergunta") or "").strip()
@@ -421,6 +428,14 @@ class Nucleo:
             pergunta = sem_rota + "\n\nOu era alguma destas?"
         botoes = [[(ROTULOS_ROTA[o], o)] for o in dict.fromkeys(opcoes[:4])]
         return [Resposta(pergunta, botoes=botoes)]
+
+    def _contexto_ocioso(self, s, prof) -> str:
+        """Para o roteador entender "o da Maria": os orçamentos recentes com número, cliente e situação."""
+        recentes = self._recentes(s, prof, 15)
+        if not recentes:
+            return "Nenhum orçamento aberto agora. Ainda não há orçamentos."
+        return ("Nenhum orçamento aberto agora. Orçamentos recentes:\n"
+                + "\n".join(f"{self._linha_orc(o)} ({o.status})" for o in recentes))
 
     def _seguir_rascunho(self, s, prof, rascunho):
         """Depois de montar/corrigir: pergunta preços que faltam ou mostra o resumo para conferência."""

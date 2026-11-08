@@ -92,3 +92,53 @@ def test_pedido_livre_com_orcamento_aberto_volta_ao_resumo(tmp_path):
     assert a.prof().cor_pdf == "azul"
     assert a.prof().estado == "CONFIRMANDO"
     assert rs[-1].botoes and "Dona Maria" in rs[-1].texto  # o resumo do orçamento aberto volta
+
+
+# ---------------------------------------------------------------- dúvidas fora do script
+class IADuvidas(IARoteadora):
+    def rotear(self, texto, contexto=""):
+        self.ultimo_contexto = contexto
+        if texto == "da pra usar no whatsapp?":
+            return {"acoes": [], "resposta": "Por enquanto é no Telegram; o cliente recebe pelo WhatsApp.",
+                    "pergunta": None, "opcoes": ["/exemplo", "/inventado"]}
+        if texto == "posso colocar minha logo?":
+            return {"acoes": [{"comando": "/perfil", "argumento": None}], "resposta": "Pode! Mande a foto dela.",
+                    "pergunta": None, "opcoes": []}
+        return super().rotear(texto, contexto)
+
+
+def test_duvida_sobre_o_bot_tem_resposta_direta(tmp_path):
+    a = montar(tmp_path, ia=IADuvidas())
+    a.cadastrar()
+    rs, t = a.bot("da pra usar no whatsapp?")
+    assert t == "Por enquanto é no Telegram; o cliente recebe pelo WhatsApp."
+    assert [b[0][1] for b in rs[0].botoes] == ["/exemplo"]  # opção inventada é descartada
+    assert _eventos(a, "duvida") == [{"texto": "da pra usar no whatsapp?"}]
+    assert _eventos(a, "nao_entendido") == []
+    _, t = a.bot("posso colocar minha logo?")  # resposta e rotina juntas
+    assert t.startswith("Pode! Mande a foto dela.") and "Seus dados" in t
+
+
+def test_roteador_conhece_os_orcamentos_recentes(tmp_path):
+    a = montar(tmp_path, ia=IADuvidas())
+    a.cadastrar()
+    a.bot("o cliente aprovou o da maria")
+    assert "Ainda não há orçamentos" in a.nucleo.ia.ultimo_contexto
+    a.orcamento()
+    a.bot("o cliente aprovou o da maria")
+    assert "Nº 0001 - Dona Maria" in a.nucleo.ia.ultimo_contexto and "(enviado)" in a.nucleo.ia.ultimo_contexto
+
+
+def test_limite_da_ia_avisa_para_esperar(tmp_path):
+    class Limite(Exception):
+        status_code = 429
+
+    class IASemCota(IARoteadora):
+        def interpretar(self, *a, **kw):
+            raise Limite("Rate limit reached")
+
+    a = montar(tmp_path, ia=IARoteadora())
+    a.cadastrar()
+    a.nucleo.ia = IASemCota()
+    _, t = a.bot("orçamento pro João, 2 tomadas")
+    assert "alguns minutos" in t and "Ops" not in t

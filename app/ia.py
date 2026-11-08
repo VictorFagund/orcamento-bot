@@ -11,6 +11,9 @@ from typing import Protocol
 from openai import OpenAI
 
 from . import calculo, config
+from .textos import SOBRE_O_BOT
+
+FATOS = SOBRE_O_BOT.replace("{limite}", str(config.LIMITE_GRATIS))
 
 _NUM = {"type": ["number", "null"]}
 
@@ -151,8 +154,9 @@ na lista é forma de pagamento, não chave. Se algo não foi dito, use null. Nun
 
 SCHEMA_ROTA = {
     "type": "object", "additionalProperties": False,
-    "required": ["acoes", "pergunta", "opcoes"],
+    "required": ["acoes", "resposta", "pergunta", "opcoes"],
     "properties": {
+        "resposta": {"type": ["string", "null"]},
         "acoes": {"type": "array", "items": {
             "type": "object", "additionalProperties": False, "required": ["comando", "argumento"],
             "properties": {"comando": {"type": "string"}, "argumento": {"type": ["string", "null"]}}}},
@@ -200,8 +204,22 @@ Regras:
 - Se der para entender a área mas não o pedido exato, prefira a rotina que mostra opções a não fazer nada.
 - Se realmente não der para saber, "acoes" vazio, "pergunta" curta e amigável e em "opcoes" de 2 a 4 comandos
   sem argumento que mais provavelmente atendem (ex: ["/perfil", "/modelo", "/orcamentos"]).
-- Saudação ou conversa sem pedido -> acoes vazio, pergunta null, opcoes ["/exemplo", "/menu"].
-- Nunca use /apagarconta."""
+- Se ele cita um cliente ("o da Maria") e o CONTEXTO lista um único orçamento desse cliente, use o número dele.
+- Nunca use /apagarconta.
+
+DÚVIDAS sobre o bot ("quanto custa?", "dá pra usar no WhatsApp?", "meus dados ficam seguros?", "e se o cliente não
+pagar?"): responda em "resposta", curto (1 a 3 frases), informal, em português do Brasil, usando SOMENTE os FATOS
+abaixo. Pode citar o comando que resolve. Se os FATOS não cobrem a dúvida, "resposta" null e faça a "pergunta" com
+opções: nunca invente recurso, preço, prazo ou promessa. Saudação ("oi", "bom dia") ou agradecimento ("obrigado",
+"valeu"): "resposta" curta e simpática, opcoes ["/exemplo", "/menu"]. Pedido de rotina (não dúvida): "resposta" null.
+"quanto custa isso/o bot/o app" e "vocês vão cobrar (de mim)?" são dúvidas sobre o preço do bot; "quanto eu cobro"/"meus preços" é /precos.
+Pergunta de COMO fazer algo ("como apago um orçamento?", "como marco que pagou?") é dúvida: explique em "resposta"
+e NÃO execute nada. /aprovado, /recusado e /pago só quando ele AFIRMA que aconteceu ("o cliente aprovou o da Maria").
+Nunca diga que algo é "seguro", "protegido", "criptografado" ou "garantido", nem prometa o futuro do produto
+(preço, recursos novos): diga só o que os FATOS dizem.
+
+FATOS:
+"""
 
 
 SCHEMA_PARCELAS = {
@@ -283,10 +301,10 @@ class IAOpenAI:
         """Pedido livre que não é orçamento -> comandos do bot (ou uma pergunta com opções)."""
         if config.IA_MODO_JSON == "objeto":
             formato = {"type": "json_object"}
-            sistema = PROMPT_ROTA + "\n\nResponda SOMENTE com JSON com as chaves: acoes, pergunta, opcoes"
+            sistema = PROMPT_ROTA + FATOS + "\n\nResponda SOMENTE com JSON com as chaves: acoes, resposta, pergunta, opcoes"
         else:
             formato = {"type": "json_schema", "json_schema": {"name": "rota", "strict": True, "schema": SCHEMA_ROTA}}
-            sistema = PROMPT_ROTA
+            sistema = PROMPT_ROTA + FATOS
         usuario = (f"CONTEXTO: {contexto}\n\n" if contexto else "") + f"MENSAGEM: {texto}"
         resp = self.cliente.chat.completions.create(
             model=config.MODELO_TEXTO, temperature=0, response_format=formato,
