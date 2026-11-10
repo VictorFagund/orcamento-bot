@@ -6,3 +6,4 @@ resultado*.json
 __pycache__/
 .pytest_cache/
 web.log
+docs/

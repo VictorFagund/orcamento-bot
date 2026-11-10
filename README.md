@@ -153,13 +153,22 @@ python avaliar_ia.py         # avalia a IA REAL do seu .env com 33 frases realis
 
 **Avaliação da IA real (`avaliar_ia.py`):** roda 33 casos realistas (fala hesitante de áudio, número por extenso, "meia dúzia", correções, descontos, pagamentos, mensagem encaminhada do cliente...) e mostra a taxa de acerto, os erros de cada caso e quantas vezes a IA **inventou preço** (o ideal é zero). Use para escolher modelo/provedor (troque no `.env` e rode de novo) e para conferir se uma mudança no prompt melhorou. Os casos ficam em `tests/casos_ia.json`: ao achar uma frase que a IA erra no uso real, adicione lá.
 
-## Próximos passos sugeridos
+## Status: protótipo funcional
 
-1. Rodar com uso real (você mesmo e 2–3 prestadores) e anotar onde a IA erra.
-2. Hospedar num VPS (o bot roda 24h com `python bot_telegram.py` via systemd ou Docker) e trocar SQLite por PostgreSQL.
-3. Adaptador do WhatsApp (WhatsApp Cloud API).
-4. Agenda por voz após aprovação ("marca dia 12 às 8h") com confirmação para o cliente.
-5. Termo de garantia + pedido de avaliação no Google após o pagamento.
-6. Registro de gastos por áudio ("gastei 80 de material") → lucro por serviço e financeiro completo do MEI.
-7. Link de aprovação com aceite (exige hospedar uma página).
-8. Cobrança da assinatura (ex: Mercado Pago ou Asaas, com Pix recorrente).
+Testado de ponta a ponta pelo autor (áudio real no Telegram, PDF, link do cliente aberto no celular).
+Ainda **não está em produção** e não tem usuários. Os arquivos de deploy existem, mas o servidor não.
+
+### Projeção
+
+**Fase 1 — piloto (2 a 3 semanas):** 3 a 5 prestadores reais no plano sem limite. O que decide se
+continua são as métricas que o próprio bot já registra (`metricas.py`): quantos fazem o 1º orçamento,
+quantos voltam numa 2ª semana, % de orçamentos gerados sem correção, % de links abertos e aprovados
+pelo cliente.
+
+**Fase 2 — se o piloto mostrar uso espontâneo:** servidor 24h, IA paga com teto de gasto, adaptador
+do WhatsApp (o núcleo já não depende do Telegram) e nome/domínio próprios.
+
+**Fase 3 — produto:** assinatura com plano gratuito limitado, e recursos escolhidos pelo que os
+prestadores pedirem: agenda por voz, pedido de avaliação após o serviço, registro de gastos por áudio.
+
+Nada da fase 2 em diante é construído antes da fase 1 responder.
