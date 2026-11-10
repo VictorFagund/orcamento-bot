@@ -2,6 +2,8 @@
 
 O prestador de serviço manda um áudio descrevendo o serviço e recebe de volta um orçamento em PDF, com a marca dele, pronto para encaminhar ao cliente.
 
+![Os 3 modelos de PDF, com Pix no valor exato (dados fictícios)](img/modelos_pdf.png)
+
 **Fluxo:** áudio → transcrição → IA identifica cliente, itens e quantidades → preços aplicados a partir da tabela do profissional → resumo para conferência → OK → PDF.
 
 ## Em números
