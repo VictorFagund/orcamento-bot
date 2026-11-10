@@ -4,6 +4,20 @@ O prestador de serviço manda um áudio descrevendo o serviço e recebe de volta
 
 **Fluxo:** áudio → transcrição → IA identifica cliente, itens e quantidades → preços aplicados a partir da tabela do profissional → resumo para conferência → OK → PDF.
 
+## Em números
+
+- **IA real avaliada, não só simulada:** `avaliar_ia.py` roda 38 frases de prestadores de verdade
+  (incluindo correções, preço falado na hora e oficina mecânica) contra o modelo: **36/38 certas,
+  0 preço inventado**. O roteador de pedidos livres acertou 12/12 frases vagas.
+- **195 testes** automatizados com IA simulada (gratuitos, rodam em ~50 s).
+- Telegram + página web do cliente (aprovar com aceite, Pix do sinal, pedir alteração), painel do
+  prestador, parcelas, limite do plano grátis, métricas de uso e deploy (systemd, Caddy, backup).
+- IA: `gpt-oss-120b` na Groq, saída em JSON Schema.
+
+Cada erro que a avaliação achou virou regra no código ou no prompt e foi medido de novo. Exemplo:
+"pro Seu Carlos a pastilha sai 220" estava alterando a tabela de preços do prestador; agora vale só
+naquele orçamento (de 1/5 para 4/5 na sonda de oficina).
+
 ## Regra de ouro: a IA nunca decide preço
 
 A IA recebe a tabela do profissional **sem os valores** (só id, descrição e sinônimos). Ela devolve apenas *qual item* e *quantos*. Toda a conta é feita em `app/calculo.py`, com os preços do banco. Se aparecer um serviço que não está na tabela, o bot pergunta o valor e guarda para as próximas vezes.
